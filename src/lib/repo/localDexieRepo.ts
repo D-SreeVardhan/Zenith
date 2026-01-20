@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { db } from "./db";
 import type { Repository } from "./Repository";
+import { getWeekStartDate, normalizeScheduledWeekdays, toLocalYmd } from "../utils";
 import type {
   Habit,
   Event,
@@ -13,6 +14,26 @@ import type {
   CreateEventTaskInput,
   UpdateEventTaskInput,
 } from "../types";
+
+function parseLocalYmd(ymd: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+}
+
+function dateKeyToMonDayIndex(dateKey: string): number | null {
+  const dt = parseLocalYmd(dateKey);
+  if (!dt) return null;
+  return (dt.getDay() + 6) % 7; // 0..6 where 0=Mon
+}
+
+function getWeekRangeKeys(mondayKey: string): { mondayKey: string; sundayKey: string } {
+  const monday = parseLocalYmd(mondayKey);
+  if (!monday) return { mondayKey, sundayKey: mondayKey };
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { mondayKey, sundayKey: toLocalYmd(sunday) };
+}
 
 // Local-first repository implementation using Dexie (IndexedDB)
 export const localDexieRepo: Repository = {
@@ -28,11 +49,15 @@ export const localDexieRepo: Repository = {
   },
 
   async createHabit(input: CreateHabitInput): Promise<Habit> {
+    const weekStartDate = getWeekStartDate(new Date());
     const habit: Habit = {
       id: nanoid(),
       ...input,
       createdAt: new Date().toISOString(),
       completions: [],
+      weekStartDate,
+      weeklyCompletionCount: 0,
+      scheduledWeekdays: normalizeScheduledWeekdays((input as any).scheduledWeekdays),
     };
     await db.habits.add(habit);
     return habit;
@@ -54,7 +79,17 @@ export const localDexieRepo: Repository = {
     if (!habit) throw new Error(`Habit ${id} not found`);
 
     const dateStr = date.split("T")[0]; // Normalize to date only
-    const completions = new Set(habit.completions);
+    const completions = new Set(habit.completions ?? []);
+
+    // Ensure weekly tracking fields exist and reset on new week
+    const currentWeekStart = getWeekStartDate(new Date());
+    const weekStartDate =
+      typeof habit.weekStartDate === "string" && habit.weekStartDate
+        ? habit.weekStartDate
+        : currentWeekStart;
+    const effectiveWeekStart = weekStartDate === currentWeekStart ? weekStartDate : currentWeekStart;
+    const { mondayKey, sundayKey } = getWeekRangeKeys(effectiveWeekStart);
+    const schedule = new Set(normalizeScheduledWeekdays(habit.scheduledWeekdays));
 
     if (completions.has(dateStr)) {
       completions.delete(dateStr);
@@ -62,9 +97,18 @@ export const localDexieRepo: Repository = {
       completions.add(dateStr);
     }
 
+    const weeklyCompletionCount = Array.from(completions).filter((d) => {
+      if (!(d >= mondayKey && d <= sundayKey)) return false;
+      const idx = dateKeyToMonDayIndex(d);
+      return idx !== null && schedule.has(idx);
+    }).length;
+
     const updated: Habit = {
       ...habit,
       completions: Array.from(completions),
+      weekStartDate: effectiveWeekStart,
+      weeklyCompletionCount,
+      scheduledWeekdays: normalizeScheduledWeekdays(habit.scheduledWeekdays),
     };
 
     await db.habits.put(updated);

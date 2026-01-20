@@ -17,6 +17,28 @@ import type {
   TaskSortMode,
 } from "@/lib/types";
 import { localDexieRepo } from "@/lib/repo/localDexieRepo";
+import { getWeekStartDate, normalizeScheduledWeekdays, toLocalYmd } from "@/lib/utils";
+
+function dateKeyToMonDayIndex(dateKey: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dt = new Date(y, m - 1, d, 12, 0, 0, 0);
+  return (dt.getDay() + 6) % 7; // 0..6 where 0=Mon
+}
+
+function parseLocalYmd(ymd: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d, 12, 0, 0, 0);
+}
+
+function getWeekRangeKeys(mondayKey: string): { mondayKey: string; sundayKey: string } {
+  const monday = parseLocalYmd(mondayKey);
+  if (!monday) return { mondayKey, sundayKey: mondayKey };
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { mondayKey, sundayKey: toLocalYmd(sunday) };
+}
 
 interface AppState {
   // Data
@@ -97,7 +119,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isLoading: true });
     try {
       const habits = await localDexieRepo.getAllHabits();
-      set({ habits });
+      const currentWeekStart = getWeekStartDate(new Date());
+      const { mondayKey, sundayKey } = getWeekRangeKeys(currentWeekStart);
+
+      const normalized = await Promise.all(
+        habits.map(async (h) => {
+          const completions = Array.isArray(h.completions) ? h.completions : [];
+          const schedule = new Set(normalizeScheduledWeekdays(h.scheduledWeekdays));
+          const weeklyCompletionCount = completions.filter((d) => {
+            if (!(d >= mondayKey && d <= sundayKey)) return false;
+            const idx = dateKeyToMonDayIndex(d);
+            return idx !== null && schedule.has(idx);
+          }).length;
+
+          const needsWeekStart = h.weekStartDate !== currentWeekStart;
+          const needsCount = h.weeklyCompletionCount !== weeklyCompletionCount;
+          const needsInit =
+            typeof h.weekStartDate !== "string" ||
+            typeof h.weeklyCompletionCount !== "number" ||
+            !Array.isArray(h.scheduledWeekdays);
+
+          if (needsInit || needsWeekStart || needsCount) {
+            return await localDexieRepo.updateHabit(h.id, {
+              weekStartDate: currentWeekStart,
+              weeklyCompletionCount,
+              scheduledWeekdays: normalizeScheduledWeekdays(h.scheduledWeekdays),
+            });
+          }
+          return h;
+        })
+      );
+
+      set({ habits: normalized });
     } finally {
       set({ isLoading: false });
     }
