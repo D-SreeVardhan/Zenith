@@ -13,6 +13,11 @@ const _schema = i.schema({
       active: i.boolean(),
       targetTimeframe: i.json(),
       completions: i.json(), // string[] (YYYY-MM-DD)
+      // Weekly tracking (client derives + updates)
+      weekStartDate: i.string().optional(), // YYYY-MM-DD (local Monday)
+      weeklyCompletionCount: i.number().optional(),
+      // Optional per-habit weekly schedule (0=Mon .. 6=Sun)
+      scheduledWeekdays: i.json().optional(), // number[]
     }),
 
     events: i.entity({

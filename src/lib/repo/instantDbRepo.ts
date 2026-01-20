@@ -1,5 +1,6 @@
 import { instantDb } from "@/lib/instantdb";
 import type { Repository } from "@/lib/repo/Repository";
+import { getScheduledDaysInWeek, getWeekStartDate, normalizeScheduledWeekdays } from "@/lib/utils";
 import type {
   ActivityLog,
   CreateEventInput,
@@ -19,6 +20,37 @@ async function requireUserId(): Promise<string> {
   return auth.id;
 }
 
+function normalizeHabit(raw: Habit): Habit {
+  const now = new Date();
+  const weekStartDate =
+    typeof raw.weekStartDate === "string" && raw.weekStartDate
+      ? raw.weekStartDate
+      : getWeekStartDate(now);
+
+  const scheduledWeekdays = normalizeScheduledWeekdays(raw.scheduledWeekdays);
+
+  const completions = Array.isArray(raw.completions)
+    ? Array.from(new Set(raw.completions.filter((d) => typeof d === "string")))
+    : [];
+
+  const scheduledKeys = new Set(
+    getScheduledDaysInWeek(now, scheduledWeekdays).map((d) => d.dateKey)
+  );
+
+  const weeklyCompletionCount =
+    typeof raw.weeklyCompletionCount === "number"
+      ? raw.weeklyCompletionCount
+      : completions.filter((k) => scheduledKeys.has(k)).length;
+
+  return {
+    ...raw,
+    completions,
+    weekStartDate,
+    weeklyCompletionCount,
+    scheduledWeekdays,
+  };
+}
+
 export const instantDbRepo: Repository = {
   // ========================
   // HABITS
@@ -30,7 +62,7 @@ export const instantDbRepo: Repository = {
         $: { where: { userId } },
       },
     });
-    return (data.habits ?? []) as Habit[];
+    return ((data.habits ?? []) as Habit[]).map(normalizeHabit);
   },
 
   async getHabit(id: string): Promise<Habit | undefined> {
@@ -40,7 +72,8 @@ export const instantDbRepo: Repository = {
         $: { where: { userId, id } },
       },
     });
-    return (data.habits?.[0] as Habit | undefined) ?? undefined;
+    const raw = (data.habits?.[0] as Habit | undefined) ?? undefined;
+    return raw ? normalizeHabit(raw) : undefined;
   },
 
   async createHabit(input: CreateHabitInput): Promise<Habit> {
@@ -48,6 +81,11 @@ export const instantDbRepo: Repository = {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const completions: string[] = [];
+    const weekStartDate = getWeekStartDate(new Date());
+    const scheduledWeekdays = normalizeScheduledWeekdays(
+      (input as unknown as { scheduledWeekdays?: number[] }).scheduledWeekdays
+    );
+    const weeklyCompletionCount = 0;
 
     await instantDb.transact(
       instantDb.tx.habits[id].create({
@@ -57,16 +95,22 @@ export const instantDbRepo: Repository = {
         createdAt,
         targetTimeframe: input.targetTimeframe,
         completions,
+        weekStartDate,
+        weeklyCompletionCount,
+        scheduledWeekdays,
       })
     );
 
-    return {
+    return normalizeHabit({
       id,
       userId,
       ...input,
       createdAt,
       completions,
-    };
+      weekStartDate,
+      weeklyCompletionCount,
+      scheduledWeekdays,
+    } as Habit);
   },
 
   async updateHabit(id: string, input: UpdateHabitInput): Promise<Habit> {
@@ -96,9 +140,22 @@ export const instantDbRepo: Repository = {
     if (completions.has(dateStr)) completions.delete(dateStr);
     else completions.add(dateStr);
 
+    const now = new Date();
+    const weekStartDate = getWeekStartDate(now);
+    const scheduledWeekdays = normalizeScheduledWeekdays(habit.scheduledWeekdays);
+    const scheduledKeys = new Set(
+      getScheduledDaysInWeek(now, scheduledWeekdays).map((d) => d.dateKey)
+    );
+    const weeklyCompletionCount = Array.from(completions).filter((k) =>
+      scheduledKeys.has(k)
+    ).length;
+
     await instantDb.transact(
       instantDb.tx.habits[id].update({
         completions: Array.from(completions),
+        weekStartDate,
+        weeklyCompletionCount,
+        scheduledWeekdays,
       })
     );
 
@@ -109,15 +166,15 @@ export const instantDbRepo: Repository = {
 
   async restoreHabit(habit: Habit): Promise<Habit> {
     const userId = habit.userId ?? (await requireUserId());
+    const normalized = normalizeHabit({ ...habit, userId });
     await instantDb.transact(
       instantDb.tx.habits[habit.id].update({
-        ...habit,
-        userId,
-        targetTimeframe: habit.targetTimeframe,
-        completions: habit.completions,
+        ...normalized,
+        targetTimeframe: normalized.targetTimeframe,
+        completions: normalized.completions,
       })
     );
-    return { ...habit, userId };
+    return normalized;
   },
 
   // ========================
