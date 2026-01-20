@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 import { TrendingUp, TrendingDown, Minus, Target, Calendar, CheckCircle2, Clock } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { toISODateString, getDaysInRange } from "@/lib/utils";
+import { toLocalYmd, getDaysInRange } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -91,41 +91,59 @@ export function StatsPanel() {
     
     // This week's habit completions
     const thisWeekDays = getDaysInRange(thisWeekStart, today);
-    const thisWeekDates = thisWeekDays.map((d) => toISODateString(d));
+    const thisWeekDates = thisWeekDays.map((d) => toLocalYmd(d));
     
     let thisWeekCompletions = 0;
+    let thisWeekScheduled = 0;
+    
     activeHabits.forEach((habit) => {
       thisWeekDates.forEach((date) => {
-        if (habit.completions.includes(date)) {
-          thisWeekCompletions++;
+        // Count scheduled days (if habit has schedule, otherwise all 7 days)
+        const scheduledWeekdays = habit.scheduledWeekdays || [0, 1, 2, 3, 4, 5, 6];
+        const dateObj = new Date(date + 'T12:00:00');
+        const dayOfWeek = (dateObj.getDay() + 6) % 7; // Convert to Mon=0, Sun=6
+        
+        if (scheduledWeekdays.includes(dayOfWeek)) {
+          thisWeekScheduled++;
+          if (habit.completions.includes(date)) {
+            thisWeekCompletions++;
+          }
         }
       });
     });
     
     // Last week's habit completions
     const lastWeekDays = getDaysInRange(lastWeekStart, lastWeekEnd);
-    const lastWeekDates = lastWeekDays.map((d) => toISODateString(d));
+    const lastWeekDates = lastWeekDays.map((d) => toLocalYmd(d));
     
     let lastWeekCompletions = 0;
+    let lastWeekScheduled = 0;
+    
     activeHabits.forEach((habit) => {
       lastWeekDates.forEach((date) => {
-        if (habit.completions.includes(date)) {
-          lastWeekCompletions++;
+        const scheduledWeekdays = habit.scheduledWeekdays || [0, 1, 2, 3, 4, 5, 6];
+        const dateObj = new Date(date + 'T12:00:00');
+        const dayOfWeek = (dateObj.getDay() + 6) % 7;
+        
+        if (scheduledWeekdays.includes(dayOfWeek)) {
+          lastWeekScheduled++;
+          if (habit.completions.includes(date)) {
+            lastWeekCompletions++;
+          }
         }
       });
     });
 
-    // Completion rate
-    const maxPossibleThisWeek = activeHabits.length * 7;
-    const completionRate = maxPossibleThisWeek > 0 
-      ? Math.round((thisWeekCompletions / maxPossibleThisWeek) * 100)
+    // Win rate (only counts scheduled habits)
+    const winRate = thisWeekScheduled > 0 
+      ? Math.round((thisWeekCompletions / thisWeekScheduled) * 100)
       : 0;
 
-    const lastWeekRate = activeHabits.length * 7 > 0
-      ? Math.round((lastWeekCompletions / (activeHabits.length * 7)) * 100)
+    const lastWeekRate = lastWeekScheduled > 0
+      ? Math.round((lastWeekCompletions / lastWeekScheduled) * 100)
       : 0;
 
-    const rateDiff = completionRate - lastWeekRate;
+    const rateDiff = winRate - lastWeekRate;
 
     // Active events count
     const activeEvents = events.filter((e) => {
@@ -158,7 +176,7 @@ export function StatsPanel() {
     const bestDay = Object.entries(dayCompletions).sort((a, b) => b[1] - a[1])[0];
 
     return {
-      completionRate,
+      winRate,
       rateTrend: rateDiff > 0 ? "up" : rateDiff < 0 ? "down" : "neutral",
       rateDiff: rateDiff > 0 ? `+${rateDiff}%` : `${rateDiff}%`,
       activeEventsCount: activeEvents.length,
@@ -168,6 +186,7 @@ export function StatsPanel() {
       bestDay: bestDay ? bestDay[0] : "N/A",
       activeHabitsCount: activeHabits.length,
       thisWeekCompletions,
+      thisWeekScheduled,
     };
   }, [habits, events, eventTasks]);
 
@@ -184,9 +203,9 @@ export function StatsPanel() {
       
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Completion Rate"
-          value={`${stats.completionRate}%`}
-          subtitle={`${stats.thisWeekCompletions} habits completed`}
+          title="Win Rate"
+          value={`${stats.winRate}%`}
+          subtitle={`${stats.thisWeekCompletions} / ${stats.thisWeekScheduled} habits`}
           trend={stats.rateTrend as "up" | "down" | "neutral"}
           trendValue={stats.rateDiff}
           icon={<Target className="h-5 w-5" />}
