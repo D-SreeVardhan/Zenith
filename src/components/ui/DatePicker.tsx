@@ -71,7 +71,7 @@ export function DatePicker({
                 exit={{ opacity: 0, scale: 0.98, y: 8 }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
                 className={cn(
-                  "z-50 w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4 shadow-2xl",
+                  "z-[60] w-[min(320px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-2.5 sm:p-4 shadow-2xl",
                   "relative overflow-hidden"
                 )}
               >
@@ -93,23 +93,23 @@ export function DatePicker({
                     className="mx-auto"
                     classNames={{
                       months: "flex flex-col",
-                      month: "space-y-3",
+                      month: "space-y-2 sm:space-y-3",
                       caption: "flex justify-center pt-1 relative items-center mb-2",
                       caption_label: "text-sm font-medium text-text-primary",
                       nav: "space-x-1 flex items-center",
                       nav_button: cn(
-                        "h-8 w-8 bg-transparent p-0 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-lg inline-flex items-center justify-center transition-all duration-200"
+                        "h-7 w-7 sm:h-8 sm:w-8 bg-transparent p-0 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-lg inline-flex items-center justify-center transition-all duration-200"
                       ),
-                      nav_button_previous: "absolute left-1",
-                      nav_button_next: "absolute right-1",
+                      nav_button_previous: "absolute left-0 sm:left-1",
+                      nav_button_next: "absolute right-0 sm:right-1",
                       table: "w-full border-collapse",
                       head_row: "flex",
                       head_cell:
-                        "text-text-muted rounded-md w-10 font-normal text-[0.75rem] tracking-tight",
-                      row: "flex w-full mt-1.5",
-                      cell: "h-10 w-10 text-center text-sm p-0 relative",
+                        "text-text-muted rounded-md w-9 sm:w-10 font-normal text-[0.7rem] sm:text-[0.75rem] tracking-tight",
+                      row: "flex w-full mt-1",
+                      cell: "h-9 w-9 sm:h-10 sm:w-10 text-center text-sm p-0 relative",
                       day: cn(
-                        "h-10 w-10 p-0 font-normal rounded-xl",
+                        "h-9 w-9 sm:h-10 sm:w-10 p-0 font-normal rounded-lg sm:rounded-xl text-xs sm:text-sm",
                         "hover:bg-surface-hover transition-all duration-200 inline-flex items-center justify-center",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                       ),

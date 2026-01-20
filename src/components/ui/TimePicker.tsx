@@ -90,7 +90,7 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                 exit={{ opacity: 0, scale: 0.98, y: 8 }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
                 className={cn(
-                  "z-50 w-[min(280px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4 shadow-2xl",
+                  "z-[60] w-[min(280px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4 shadow-2xl",
                   "relative overflow-hidden"
                 )}
               >
