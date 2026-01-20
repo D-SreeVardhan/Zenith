@@ -112,7 +112,7 @@ function getLocalMonday(date: Date): Date {
   const day = d.getDay(); // 0..6 (Sun..Sat)
   const diff = (day + 6) % 7; // days since Monday
   d.setDate(d.getDate() - diff);
-  d.setHours(12, 0, 0, 0); // midday local
+  d.setHours(0, 0, 0, 0); // Monday at 12:00 AM (start of week)
   return d;
 }
 

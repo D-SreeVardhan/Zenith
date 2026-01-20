@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { useAppStore } from "@/store/useAppStore";
-import { toISODateString } from "@/lib/utils";
+import { toISODateString, toLocalYmd } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 interface WeekDayDotProps {
@@ -16,7 +16,7 @@ interface WeekDayDotProps {
 
 function WeekDayDot({ dayIndex, isCompleted, isToday, date, count }: WeekDayDotProps) {
   const [showTooltip, setShowTooltip] = useState(false);
-  const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
+  const dayNames = ["M", "T", "W", "T", "F", "S", "S"];
   
   const formattedDate = date.toLocaleDateString("en-US", {
     weekday: "short",
@@ -82,11 +82,14 @@ export function ActivityHeatmap() {
   const weekData = useMemo(() => {
     const today = new Date();
     const todayStr = toISODateString(today);
+    const todayLocalKey = toLocalYmd(today);
     
-    // Get current week (Sunday to Saturday)
-    const currentDay = today.getDay(); // 0 = Sunday
+    // Get current week (Monday to Sunday)
+    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, ...
+    const daysSinceMonday = (currentDay + 6) % 7; // 0 if Monday, 6 if Sunday
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - currentDay);
+    weekStart.setHours(0, 0, 0, 0); // Monday at 12:00 AM (start of day)
+    weekStart.setDate(today.getDate() - daysSinceMonday);
     
     // Build completion map
     const completionMap: Record<string, number> = {};
@@ -105,14 +108,15 @@ export function ActivityHeatmap() {
     for (let i = 0; i < 7; i++) {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + i);
-      const dateStr = toISODateString(date);
-      const count = completionMap[dateStr] || 0;
+      date.setHours(12, 0, 0, 0); // midday local
+      const dateKey = toLocalYmd(date);
+      const count = completionMap[dateKey] || 0;
       
       week.push({
         date,
         count,
         isCompleted: activeHabitsCount > 0 && count === activeHabitsCount,
-        isToday: dateStr === todayStr,
+        isToday: dateKey === todayLocalKey,
       });
     }
 
@@ -138,7 +142,7 @@ export function ActivityHeatmap() {
 
       <div className="p-6">
         {/* Week visualization */}
-        <div className="flex items-center justify-center gap-6 mb-6">
+        <div className="grid grid-cols-7 place-items-center gap-3 sm:gap-6 mb-6">
           {weekData.week.map((day, index) => (
             <WeekDayDot
               key={index}

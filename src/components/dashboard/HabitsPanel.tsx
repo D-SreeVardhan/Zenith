@@ -15,7 +15,22 @@ import type { CreateHabitInput, Habit } from "@/lib/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { WeeklyCheckboxGrid } from "@/components/dashboard/WeeklyCheckboxGrid";
 
-const WEEKDAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"] as const;
+const WEEKDAY_OPTIONS: Array<{ label: string; weekdayIndex: number }> = [
+  { label: "S", weekdayIndex: 6 }, // Sun (0=Mon .. 6=Sun)
+  { label: "M", weekdayIndex: 0 },
+  { label: "T", weekdayIndex: 1 },
+  { label: "W", weekdayIndex: 2 },
+  { label: "T", weekdayIndex: 3 },
+  { label: "F", weekdayIndex: 4 },
+  { label: "S", weekdayIndex: 5 }, // Sat
+];
+
+function orderWeekdaysSunFirst(input?: number[]): number[] {
+  const normalized = normalizeScheduledWeekdays(input); // 0..6 (Mon..Sun)
+  const set = new Set(normalized);
+  const sunFirst = [6, 0, 1, 2, 3, 4, 5].filter((d) => set.has(d));
+  return sunFirst.length ? sunFirst : [6, 0, 1, 2, 3, 4, 5];
+}
 
 export function HabitsPanel() {
   const { habits, loadHabits, createHabit, toggleHabitCompletion, deleteHabit } =
@@ -50,7 +65,7 @@ export function HabitsPanel() {
   const completedCount = useMemo(() => {
     if (activeHabits.length === 0) return 0;
     return activeHabits.filter((h) => {
-      const schedDays = getScheduledDaysInWeek(new Date(), h.scheduledWeekdays);
+      const schedDays = getScheduledDaysInWeek(new Date(), orderWeekdaysSunFirst(h.scheduledWeekdays));
       const targetKeys = new Set(schedDays.map((d) => d.dateKey));
       const checked = new Set(h.completions.filter((k) => targetKeys.has(k)));
       return schedDays.every((d) => checked.has(d.dateKey));
@@ -200,7 +215,7 @@ export function HabitsPanel() {
 
         <AnimatePresence initial={false}>
           {activeHabits.map((habit, index) => {
-            const scheduledDays = getScheduledDaysInWeek(new Date(), habit.scheduledWeekdays);
+            const scheduledDays = getScheduledDaysInWeek(new Date(), orderWeekdaysSunFirst(habit.scheduledWeekdays));
             const remainingKeys = new Set(scheduledDays.map((d) => d.dateKey));
             const checkedKeys = new Set(
               habit.completions.filter((k) => remainingKeys.has(k))
@@ -312,17 +327,17 @@ export function HabitsPanel() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-text-muted">Schedule</span>
                   <div className="flex items-center gap-1.5">
-                    {WEEKDAY_LABELS.map((label, idx) => {
-                      const active = newScheduledWeekdays.includes(idx);
+                    {WEEKDAY_OPTIONS.map(({ label, weekdayIndex }) => {
+                      const active = newScheduledWeekdays.includes(weekdayIndex);
                       return (
                         <button
-                          key={`${label}-${idx}`}
+                          key={`${label}-${weekdayIndex}`}
                           type="button"
                           onClick={() => {
                             setNewScheduledWeekdays((prev) => {
                               const set = new Set(prev);
-                              if (set.has(idx)) set.delete(idx);
-                              else set.add(idx);
+                              if (set.has(weekdayIndex)) set.delete(weekdayIndex);
+                              else set.add(weekdayIndex);
                               return Array.from(set).sort((a, b) => a - b);
                             });
                           }}
