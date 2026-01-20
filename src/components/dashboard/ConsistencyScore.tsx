@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { motion } from "motion/react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { toISODateString, getDaysInRange } from "@/lib/utils";
+import { toLocalYmd, getDaysInRange } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export function ConsistencyScore() {
@@ -34,7 +34,7 @@ export function ConsistencyScore() {
     const thisWeekStart = new Date(today);
     thisWeekStart.setDate(today.getDate() - 6);
     const thisWeekDays = getDaysInRange(thisWeekStart, today);
-    const thisWeekDates = thisWeekDays.map((d) => toISODateString(d));
+    const thisWeekDates = thisWeekDays.map((d) => toLocalYmd(d));
 
     // Last week (7 days before this week)
     const lastWeekStart = new Date(today);
@@ -42,7 +42,7 @@ export function ConsistencyScore() {
     const lastWeekEnd = new Date(today);
     lastWeekEnd.setDate(today.getDate() - 7);
     const lastWeekDays = getDaysInRange(lastWeekStart, lastWeekEnd);
-    const lastWeekDates = lastWeekDays.map((d) => toISODateString(d));
+    const lastWeekDates = lastWeekDays.map((d) => toLocalYmd(d));
 
     // Calculate completions
     let thisWeekCompletions = 0;

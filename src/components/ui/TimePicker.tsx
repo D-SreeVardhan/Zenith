@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -15,7 +15,6 @@ interface TimePickerProps {
 
 export function TimePicker({ value, onChange, disabled, placeholder = "Select time" }: TimePickerProps) {
   const [open, setOpen] = useState(false);
-  const [manualMode, setManualMode] = useState(false);
   
   // Parse current value and convert to 12-hour format
   const parse24HourTime = (timeStr: string) => {
@@ -26,19 +25,20 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
     return { hour, minute: m, period };
   };
   
-  const { hour: initialHour, minute: initialMinute, period: initialPeriod } = parse24HourTime(value);
+  // Manual input states - initialize from value
+  const [hourInput, setHourInput] = useState('');
+  const [minuteInput, setMinuteInput] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState<'AM' | 'PM'>('AM');
   
-  const [selectedHour, setSelectedHour] = useState(initialHour);
-  const [selectedMinute, setSelectedMinute] = useState(initialMinute);
-  const [selectedPeriod, setSelectedPeriod] = useState<'AM' | 'PM'>(initialPeriod as 'AM' | 'PM');
-  
-  // Manual input states
-  const [hourInput, setHourInput] = useState(initialHour.toString());
-  const [minuteInput, setMinuteInput] = useState(initialMinute.toString().padStart(2, '0'));
-  
-  // Generate options
-  const hours = Array.from({ length: 12 }, (_, i) => i + 1);
-  const minutes = Array.from({ length: 12 }, (_, i) => i * 5); // 0, 5, 10, ..., 55
+  // Update inputs when value changes or popover opens
+  useEffect(() => {
+    if (open || value) {
+      const { hour, minute, period } = parse24HourTime(value);
+      setHourInput(hour.toString());
+      setMinuteInput(minute.toString().padStart(2, '0'));
+      setSelectedPeriod(period as 'AM' | 'PM');
+    }
+  }, [value, open]);
   
   // Convert 12-hour format to 24-hour format
   const to24Hour = (hour12: number, period: 'AM' | 'PM') => {
@@ -60,15 +60,7 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
     return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
   };
   
-  const handleDropdownChange = (hour: number, minute: number, period: 'AM' | 'PM') => {
-    setSelectedHour(hour);
-    setSelectedMinute(minute);
-    setSelectedPeriod(period);
-    const newTime = formatTime(hour, minute, period);
-    onChange(newTime);
-  };
-  
-  const handleManualSubmit = () => {
+  const handleApply = () => {
     const hour = parseInt(hourInput) || 12;
     const minute = parseInt(minuteInput) || 0;
     
@@ -76,36 +68,15 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
     const validHour = Math.max(1, Math.min(12, hour));
     const validMinute = Math.max(0, Math.min(59, minute));
     
-    setSelectedHour(validHour);
-    setSelectedMinute(validMinute);
     setHourInput(validHour.toString());
     setMinuteInput(validMinute.toString().padStart(2, '0'));
     
     const newTime = formatTime(validHour, validMinute, selectedPeriod);
     onChange(newTime);
-    setManualMode(false);
-  };
-  
-  const handleClear = () => {
-    onChange('');
     setOpen(false);
   };
   
-  const handleNow = () => {
-    const now = new Date();
-    const hour24 = now.getHours();
-    const minute = now.getMinutes();
-    const period = hour24 >= 12 ? 'PM' : 'AM';
-    const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
-    
-    setSelectedHour(hour12);
-    setSelectedMinute(minute);
-    setSelectedPeriod(period);
-    setHourInput(hour12.toString());
-    setMinuteInput(minute.toString().padStart(2, '0'));
-    
-    const newTime = formatTime(hour12, minute, period);
-    onChange(newTime);
+  const handleCancel = () => {
     setOpen(false);
   };
 
@@ -149,141 +120,88 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                 {/* Soft top glow */}
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,169,98,0.08),transparent_60%)]" />
 
-                <div className="relative space-y-3">
-                  {/* Header with mode toggle */}
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-text-muted">
-                      {manualMode ? "Type time" : "Select time"}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setManualMode(!manualMode)}
-                      className="text-xs text-accent hover:text-accent-hover transition-colors"
-                    >
-                      {manualMode ? "Use dropdowns" : "Type manually"}
-                    </button>
+                <div className="relative space-y-4">
+                  {/* Header */}
+                  <div className="text-center">
+                    <div className="text-xs text-text-muted">Enter time</div>
                   </div>
 
-                  {!manualMode ? (
-                    /* Dropdown Mode */
-                    <div className="space-y-3">
-                      {/* Display */}
-                      <div className="text-center py-3">
-                        <div className="text-3xl font-bold text-accent tracking-tight">
-                          {selectedHour}:{selectedMinute.toString().padStart(2, '0')} {selectedPeriod}
-                        </div>
-                      </div>
+                  {/* Manual Input */}
+                  <div className="flex items-center justify-center gap-2.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      min="1"
+                      max="12"
+                      value={hourInput}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '');
+                        if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 12)) {
+                          setHourInput(value);
+                        }
+                      }}
+                      onKeyPress={(e) => {
+                        if (!/[0-9]/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
+                      className="w-20 h-14 rounded-lg bg-surface border border-border text-text-primary text-center text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                      placeholder="HH"
+                      maxLength={2}
+                    />
+                    <span className="text-3xl font-bold text-text-muted">:</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      min="0"
+                      max="59"
+                      value={minuteInput}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9]/g, '');
+                        if (value === '' || (parseInt(value) >= 0 && parseInt(value) <= 59)) {
+                          setMinuteInput(value);
+                        }
+                      }}
+                      onKeyPress={(e) => {
+                        if (!/[0-9]/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
+                      className="w-20 h-14 rounded-lg bg-surface border border-border text-text-primary text-center text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                      placeholder="MM"
+                      maxLength={2}
+                    />
+                    <select
+                      value={selectedPeriod}
+                      onChange={(e) => setSelectedPeriod(e.target.value as 'AM' | 'PM')}
+                      className="w-20 h-14 rounded-lg bg-surface border border-border text-text-primary text-center text-lg font-bold cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
 
-                      {/* Dropdowns */}
-                      <div className="grid grid-cols-3 gap-3">
-                        {/* Hour Select */}
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-text-secondary block text-center">
-                            Hour
-                          </label>
-                          <select
-                            value={selectedHour}
-                            onChange={(e) => handleDropdownChange(Number(e.target.value), selectedMinute, selectedPeriod)}
-                            className="w-full h-11 rounded-lg bg-surface border border-border text-text-primary text-center text-base font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          >
-                            {hours.map((h) => (
-                              <option key={h} value={h}>{h}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Minute Select */}
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-text-secondary block text-center">
-                            Minute
-                          </label>
-                          <select
-                            value={selectedMinute}
-                            onChange={(e) => handleDropdownChange(selectedHour, Number(e.target.value), selectedPeriod)}
-                            className="w-full h-11 rounded-lg bg-surface border border-border text-text-primary text-center text-base font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          >
-                            {minutes.map((m) => (
-                              <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Period Select */}
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-text-secondary block text-center">
-                            Period
-                          </label>
-                          <select
-                            value={selectedPeriod}
-                            onChange={(e) => handleDropdownChange(selectedHour, selectedMinute, e.target.value as 'AM' | 'PM')}
-                            className="w-full h-11 rounded-lg bg-surface border border-border text-text-primary text-center text-base font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          >
-                            <option value="AM">AM</option>
-                            <option value="PM">PM</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Manual Input Mode */
-                    <div className="space-y-3">
-                      {/* Manual Inputs */}
-                      <div className="flex items-center justify-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          max="12"
-                          value={hourInput}
-                          onChange={(e) => setHourInput(e.target.value)}
-                          onBlur={handleManualSubmit}
-                          className="w-16 h-12 rounded-lg bg-surface border border-border text-text-primary text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          placeholder="HH"
-                        />
-                        <span className="text-2xl font-bold text-text-muted">:</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="59"
-                          value={minuteInput}
-                          onChange={(e) => setMinuteInput(e.target.value)}
-                          onBlur={handleManualSubmit}
-                          className="w-16 h-12 rounded-lg bg-surface border border-border text-text-primary text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-accent/40"
-                          placeholder="MM"
-                        />
-                        <select
-                          value={selectedPeriod}
-                          onChange={(e) => {
-                            setSelectedPeriod(e.target.value as 'AM' | 'PM');
-                            handleDropdownChange(selectedHour, selectedMinute, e.target.value as 'AM' | 'PM');
-                          }}
-                          className="w-16 h-12 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-bold cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
-                        >
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
-                      </div>
-
-                      <div className="text-xs text-center text-text-muted">
-                        Press Enter or click outside to apply
-                      </div>
-                    </div>
-                  )}
+                  <div className="text-xs text-center text-text-muted">
+                    Type hour (1-12) and minute (0-59)
+                  </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t border-border-subtle">
+                  <div className="flex gap-3 pt-2 border-t border-border-subtle">
                     <button
                       type="button"
-                      onClick={handleClear}
-                      className="flex-1 h-9 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
+                      onClick={handleCancel}
+                      className="flex-1 h-10 rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors border border-border"
                     >
-                      Clear
+                      Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={handleNow}
-                      className="flex-1 h-9 rounded-lg text-sm font-medium bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                      onClick={handleApply}
+                      className="flex-1 h-10 rounded-lg text-sm font-medium bg-accent text-base hover:bg-accent-hover transition-colors"
                     >
-                      Now
+                      Apply
                     </button>
                   </div>
                 </div>
