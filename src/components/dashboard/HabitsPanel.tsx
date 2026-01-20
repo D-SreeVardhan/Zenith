@@ -11,7 +11,7 @@ import {
   normalizeScheduledWeekdays,
   toLocalYmd,
 } from "@/lib/utils";
-import type { Habit } from "@/lib/types";
+import type { CreateHabitInput, Habit } from "@/lib/types";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { WeeklyCheckboxGrid } from "@/components/dashboard/WeeklyCheckboxGrid";
 
@@ -32,6 +32,8 @@ export function HabitsPanel() {
   const [showAllDoneBurst, setShowAllDoneBurst] = useState(false);
   const [prevAllComplete, setPrevAllComplete] = useState(false);
   const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+
+  const openAddHabit = () => setIsAdding(true);
 
   useEffect(() => {
     loadHabits();
@@ -70,18 +72,26 @@ export function HabitsPanel() {
   const handleAddHabit = async () => {
     if (!newHabitTitle.trim()) return;
 
-    await createHabit({
+    const payload: CreateHabitInput = {
       title: newHabitTitle.trim(),
       active: true,
       targetTimeframe: {
         preset: "week",
       },
       scheduledWeekdays: normalizeScheduledWeekdays(newScheduledWeekdays),
-    });
+    };
 
+    // Close immediately on submit (even if network is slow).
     setNewHabitTitle("");
     setNewScheduledWeekdays([0, 1, 2, 3, 4, 5, 6]);
     setIsAdding(false);
+
+    try {
+      await createHabit(payload);
+    } catch (err) {
+      // Keep UI responsive; log for debugging.
+      console.error("Failed to create habit", err);
+    }
   };
 
   const handleToggle = async (habitId: string, dateKey: string) => {
@@ -116,7 +126,7 @@ export function HabitsPanel() {
           )}
         </div>
         <motion.button
-          onClick={() => setIsAdding(true)}
+          onClick={openAddHabit}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors"
           aria-label="Add habit"
           whileHover={{ scale: 1.05 }}
@@ -170,12 +180,17 @@ export function HabitsPanel() {
 
         {activeHabits.length === 0 && !isAdding && (
           <div className="px-4 py-8 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-elevated">
+            <button
+              type="button"
+              onClick={openAddHabit}
+              className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-elevated transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+              aria-label="Create your first habit"
+            >
               <Plus className="h-6 w-6 text-text-muted" />
-            </div>
+            </button>
             <p className="text-sm text-text-muted">No habits yet.</p>
             <button
-              onClick={() => setIsAdding(true)}
+              onClick={openAddHabit}
               className="mt-2 text-sm text-accent hover:underline"
             >
               Add your first habit

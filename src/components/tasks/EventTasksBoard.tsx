@@ -40,57 +40,23 @@ export function EventTasksBoard({ eventId }: EventTasksBoardProps) {
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
 
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/39f67edb-5359-4afa-af41-b72b25689195", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "debug-session",
-        runId: "pre-fix",
-        hypothesisId: "H4",
-        location: "src/components/tasks/EventTasksBoard.tsx",
-        message: "handleAddTask: before createTask",
-        data: {
-          eventId,
-          titleLen: newTaskTitle.trim().length,
-          priority: newTaskPriority,
-          tasksCount: tasks.length,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/39f67edb-5359-4afa-af41-b72b25689195", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: "debug-session",
-        runId: "run2",
-        hypothesisId: "H4",
-        location: "src/components/tasks/EventTasksBoard.tsx",
-        message: "handleAddTask: before createTask (run2)",
-        data: {
-          eventId,
-          titleLen: newTaskTitle.trim().length,
-          priority: newTaskPriority,
-          tasksCount: tasks.length,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
-    await createTask({
+    const payload = {
       eventId,
       title: newTaskTitle.trim(),
       done: false,
       priority: newTaskPriority,
-    });
+    };
 
+    // Close immediately on submit (even if network is slow).
     setNewTaskTitle("");
     setNewTaskPriority(null);
     setIsAdding(false);
+
+    try {
+      await createTask(payload);
+    } catch (err) {
+      console.error("Failed to create task", err);
+    }
   };
 
   return (
@@ -140,36 +106,6 @@ export function EventTasksBoard({ eventId }: EventTasksBoardProps) {
 
           <button
             onClick={() => {
-              // #region agent log
-              fetch("http://127.0.0.1:7242/ingest/39f67edb-5359-4afa-af41-b72b25689195", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  sessionId: "debug-session",
-                  runId: "pre-fix",
-                  hypothesisId: "H3",
-                  location: "src/components/tasks/EventTasksBoard.tsx",
-                  message: "Add Task button clicked",
-                  data: { eventId, isAddingBefore: isAdding, tasksCount: tasks.length },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion
-              // #region agent log
-              fetch("http://127.0.0.1:7242/ingest/39f67edb-5359-4afa-af41-b72b25689195", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  sessionId: "debug-session",
-                  runId: "run2",
-                  hypothesisId: "H3",
-                  location: "src/components/tasks/EventTasksBoard.tsx",
-                  message: "Add Task button clicked (run2)",
-                  data: { eventId, isAddingBefore: isAdding, tasksCount: tasks.length },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-              // #endregion
               setIsAdding(true);
             }}
             className="btn-primary inline-flex items-center gap-1.5 text-xs"

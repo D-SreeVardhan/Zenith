@@ -5,6 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/ui/DatePicker";
 import type { Event, Priority } from "@/lib/types";
 
 interface EventEditorDialogProps {
@@ -65,6 +66,9 @@ export function EventEditorDialog({
         dueAt = dueTime ? `${dueDate}T${dueTime}:00` : dueDate;
       }
 
+      // Close immediately on submit (even if network is slow).
+      onOpenChange(false);
+
       if (isEditing) {
         await updateEvent(event.id, {
           title: title.trim(),
@@ -80,7 +84,6 @@ export function EventEditorDialog({
           notes: notes.trim(),
         });
       }
-      onOpenChange(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -150,13 +153,7 @@ export function EventEditorDialog({
                 <label htmlFor="dueDate" className="label">
                   Due Date
                 </label>
-                <input
-                  id="dueDate"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="input"
-                />
+                <DatePicker value={dueDate} onChange={setDueDate} />
               </div>
               <div className="space-y-1.5">
                 <label htmlFor="dueTime" className="label">
