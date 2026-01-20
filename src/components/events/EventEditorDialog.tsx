@@ -93,7 +93,7 @@ export function EventEditorDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-base/80 backdrop-blur-sm animate-fade-in" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-surface p-6 shadow-xl animate-scale-in">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] sm:w-full max-w-md -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-surface p-4 sm:p-6 shadow-xl animate-scale-in">
           <div className="flex items-center justify-between mb-4">
             <Dialog.Title className="text-lg font-semibold text-text-primary">
               {isEditing ? "Edit Event" : "New Event"}
@@ -186,16 +186,16 @@ export function EventEditorDialog({
             </div>
 
             {/* Actions */}
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2">
               <Dialog.Close asChild>
-                <button type="button" className="btn-secondary">
+                <button type="button" className="btn-secondary w-full sm:w-auto">
                   Cancel
                 </button>
               </Dialog.Close>
               <button
                 type="submit"
                 disabled={!title.trim() || isSubmitting}
-                className="btn-primary disabled:opacity-50"
+                className="btn-primary disabled:opacity-50 w-full sm:w-auto"
               >
                 {isSubmitting
                   ? "Saving..."

@@ -58,14 +58,20 @@ export function DatePicker({
       <AnimatePresence>
         {open && (
           <Popover.Portal forceMount>
-            <Popover.Content asChild sideOffset={10} align="start">
+            <Popover.Content 
+              asChild 
+              sideOffset={10} 
+              align="start"
+              collisionPadding={16}
+              avoidCollisions={true}
+            >
               <motion.div
                 initial={{ opacity: 0, scale: 0.98, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.98, y: 8 }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
                 className={cn(
-                  "z-50 w-[308px] rounded-2xl border border-border bg-surface-elevated p-3 shadow-2xl",
+                  "z-50 w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4 shadow-2xl",
                   "relative overflow-hidden"
                 )}
               >

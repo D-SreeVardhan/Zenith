@@ -20,6 +20,7 @@ export default function ShellLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Collapsed by default
   const [hydrated, setHydrated] = useState(false);
   const [migrationReady, setMigrationReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -32,11 +33,29 @@ export default function ShellLayout({
     }
   }, []);
 
+  // Detect mobile and force collapse sidebar
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      // Force collapse on mobile
+      if (mobile && !sidebarCollapsed) {
+        setSidebarCollapsed(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [sidebarCollapsed]);
+
   const marginLeft = useMemo(() => {
     // During first paint (before hydration), start collapsed.
     if (!hydrated) return "64px";
+    // On mobile, use minimal margin or 0 when collapsed
+    if (isMobile) return sidebarCollapsed ? "0px" : "240px";
     return sidebarCollapsed ? "64px" : "240px";
-  }, [hydrated, sidebarCollapsed]);
+  }, [hydrated, sidebarCollapsed, isMobile]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -106,7 +125,7 @@ export default function ShellLayout({
         }}
       >
         <AppHeader />
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </main>
     </div>
   );

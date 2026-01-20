@@ -174,6 +174,49 @@ body {
     pointer-events: none;
     mix-blend-mode: overlay;
   }
+  
+  /* Mobile-specific utilities */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Responsive padding utilities */
+  .responsive-p {
+    @apply p-4 sm:p-6;
+  }
+  
+  .responsive-px {
+    @apply px-4 sm:px-6;
+  }
+  
+  .responsive-py {
+    @apply py-3 sm:py-4;
+  }
+  
+  /* Mobile landscape optimizations */
+  @media (max-height: 500px) and (orientation: landscape) {
+    .dialog-content {
+      max-height: 80vh !important;
+    }
+    
+    .dropdown-menu-content {
+      max-height: 60vh !important;
+      overflow-y: auto;
+    }
+  }
+  
+  /* Ensure proper viewport handling on mobile */
+  @media (max-width: 1023px) {
+    body {
+      overflow-x: hidden;
+    }
+    
+    /* Make dialogs take up more screen on mobile */
+    [role="dialog"] {
+      width: calc(100% - 2rem) !important;
+      max-width: 28rem;
+    }
+  }
 }
 
 /* Card styling */
@@ -198,6 +241,13 @@ body {
   .card-glow {
     @apply card;
     box-shadow: 0 0 0 1px rgba(201, 169, 98, 0.1), 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Mobile-specific card adjustments */
+  @media (max-width: 640px) {
+    .card {
+      @apply rounded-lg;
+    }
   }
   
   .btn {

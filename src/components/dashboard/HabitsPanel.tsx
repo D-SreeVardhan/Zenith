@@ -255,7 +255,7 @@ export function HabitsPanel() {
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger asChild>
                       <button
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted opacity-0 group-hover:opacity-100 hover:bg-surface-hover hover:text-text-primary transition-all"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-text-muted opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-surface-hover hover:text-text-primary transition-all"
                         aria-label="More options"
                       >
                         <MoreVertical className="h-4 w-4" />
@@ -263,9 +263,11 @@ export function HabitsPanel() {
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Portal>
                       <DropdownMenu.Content
-                        className="min-w-[140px] rounded-xl border border-border bg-surface-elevated p-1.5 shadow-xl"
+                        className="min-w-[140px] max-w-[90vw] rounded-xl border border-border bg-surface-elevated p-1.5 shadow-xl z-50"
                         sideOffset={5}
                         align="end"
+                        collisionPadding={16}
+                        avoidCollisions={true}
                         asChild
                       >
                         <motion.div
