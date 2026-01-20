@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { TimePicker } from "@/components/ui/TimePicker";
 import type { Event, Priority } from "@/lib/types";
 
 interface EventEditorDialogProps {
@@ -148,7 +149,7 @@ export function EventEditorDialog({
             </div>
 
             {/* Due date and time */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label htmlFor="dueDate" className="label">
                   Due Date
@@ -159,12 +160,9 @@ export function EventEditorDialog({
                 <label htmlFor="dueTime" className="label">
                   Time (optional)
                 </label>
-                <input
-                  id="dueTime"
-                  type="time"
-                  value={dueTime}
-                  onChange={(e) => setDueTime(e.target.value)}
-                  className="input"
+                <TimePicker 
+                  value={dueTime} 
+                  onChange={setDueTime}
                   disabled={!dueDate}
                 />
               </div>

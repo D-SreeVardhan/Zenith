@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/shell/Sidebar";
+import { BottomNav } from "@/components/shell/BottomNav";
 import { AppHeader } from "@/components/shell/AppHeader";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { instantDb } from "@/lib/instantdb";
@@ -117,16 +118,23 @@ export default function ShellLayout({
 
   return (
     <div className="min-h-screen bg-base">
-      <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
+      {/* Sidebar - hidden on mobile */}
+      <div className="hidden lg:block">
+        <Sidebar collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
+      </div>
+      
       <main
-        className="transition-all duration-300 ease-in-out"
+        className="transition-all duration-300 ease-in-out pb-16 lg:pb-0"
         style={{
-          marginLeft,
+          marginLeft: isMobile ? "0px" : marginLeft,
         }}
       >
         <AppHeader />
         <div className="p-4 sm:p-6">{children}</div>
       </main>
+      
+      {/* Bottom Navigation - shown only on mobile */}
+      <BottomNav />
     </div>
   );
 }
