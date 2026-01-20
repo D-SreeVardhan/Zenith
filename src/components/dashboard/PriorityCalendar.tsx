@@ -32,10 +32,30 @@ export function PriorityCalendar() {
   const router = useRouter();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [month, setMonth] = useState(new Date());
+  const [upcomingRange, setUpcomingRange] = useState<"1" | "7" | "14" | "month">("7");
 
   useEffect(() => {
     loadEvents();
   }, [loadEvents]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("dt.upcomingRange");
+      if (saved === "1" || saved === "7" || saved === "14" || saved === "month") {
+        setUpcomingRange(saved);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dt.upcomingRange", upcomingRange);
+    } catch {
+      // ignore
+    }
+  }, [upcomingRange]);
 
   const todayKey = toLocalYmd(new Date());
 
@@ -64,10 +84,16 @@ export function PriorityCalendar() {
     const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
 
-    const horizonDays = 14;
     const horizon = new Date(startOfToday);
-    horizon.setDate(horizon.getDate() + (horizonDays - 1));
-    horizon.setHours(23, 59, 59, 999);
+    if (upcomingRange === "month") {
+      // End of current month (local)
+      horizon.setFullYear(startOfToday.getFullYear(), startOfToday.getMonth() + 1, 0);
+      horizon.setHours(23, 59, 59, 999);
+    } else {
+      const horizonDays = Number(upcomingRange); // 1,7,14
+      horizon.setDate(horizon.getDate() + (horizonDays - 1));
+      horizon.setHours(23, 59, 59, 999);
+    }
 
     const horizonKey = toLocalYmd(horizon);
 
@@ -83,7 +109,22 @@ export function PriorityCalendar() {
       .map(({ event }) => event);
 
     return list;
-  }, [events, todayKey]);
+  }, [events, todayKey, upcomingRange]);
+
+  const upcomingLabel = useMemo(() => {
+    switch (upcomingRange) {
+      case "1":
+        return "Next day";
+      case "7":
+        return "Next 7 days";
+      case "14":
+        return "Next 14 days";
+      case "month":
+        return "Complete month";
+      default:
+        return "Next 7 days";
+    }
+  }, [upcomingRange]);
 
   // Custom day content renderer
   const renderDayContent = (date: Date) => {
@@ -294,9 +335,38 @@ export function PriorityCalendar() {
 
           {/* Right: upcoming events */}
           <div className="card-elevated p-3 lg:sticky lg:top-20">
-            <div className="mb-2 flex items-baseline justify-between">
-              <p className="text-sm font-medium text-text-secondary">Upcoming</p>
-              <p className="text-xs text-text-muted">Next 14 days</p>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-text-secondary">Upcoming</p>
+                <p className="text-xs text-text-muted">{upcomingLabel}</p>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-lg border border-border-subtle bg-surface p-1">
+                {[
+                  { key: "1" as const, label: "1d" },
+                  { key: "7" as const, label: "7d" },
+                  { key: "14" as const, label: "14d" },
+                  { key: "month" as const, label: "Month" },
+                ].map((opt) => {
+                  const active = upcomingRange === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setUpcomingRange(opt.key)}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[11px] font-medium transition-colors",
+                        active
+                          ? "bg-accent/15 text-accent"
+                          : "text-text-muted hover:bg-surface-hover hover:text-text-primary"
+                      )}
+                      aria-label={`Upcoming range ${opt.label}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {upcomingEvents.length === 0 ? (
@@ -305,8 +375,8 @@ export function PriorityCalendar() {
                 <p className="mt-1 text-xs text-text-muted">Add due dates to see them here.</p>
               </div>
             ) : (
-              <div className="space-y-1.5">
-                {upcomingEvents.slice(0, 8).map((event) => (
+              <div className="max-h-[260px] space-y-1.5 overflow-y-auto pr-1">
+                {upcomingEvents.map((event) => (
                   <button
                     key={event.id}
                     className="w-full rounded-lg border border-border-subtle bg-surface px-3 py-2 text-left hover:bg-surface-hover transition-colors"
@@ -335,12 +405,6 @@ export function PriorityCalendar() {
                     </div>
                   </button>
                 ))}
-
-                {upcomingEvents.length > 8 && (
-                  <p className="pt-1 text-center text-xs text-text-muted">
-                    +{upcomingEvents.length - 8} more
-                  </p>
-                )}
               </div>
             )}
           </div>

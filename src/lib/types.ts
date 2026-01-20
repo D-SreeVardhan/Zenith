@@ -18,6 +18,11 @@ export interface Habit {
   active: boolean;
   targetTimeframe: TimeframeConfig;
   completions: string[]; // Array of ISO date strings when habit was completed
+  // Weekly tracking (used for weekly habits UI + auto-reset)
+  weekStartDate: string; // ISO date string of the current week's Monday (local)
+  weeklyCompletionCount: number; // Count of completions in the current week (Mon..Sun)
+  // Optional per-habit weekly schedule (0=Mon .. 6=Sun). If omitted, defaults to all days.
+  scheduledWeekdays?: number[];
 }
 
 // Event entity - deadlines, exams, project submissions
@@ -76,7 +81,10 @@ export interface ActivityLog {
 }
 
 // Input types for creating/updating entities
-export type CreateHabitInput = Omit<Habit, "id" | "createdAt" | "completions">;
+export type CreateHabitInput = Omit<
+  Habit,
+  "id" | "createdAt" | "completions" | "weekStartDate" | "weeklyCompletionCount"
+>;
 export type UpdateHabitInput = Partial<Omit<Habit, "id" | "createdAt">>;
 
 export type CreateEventInput = Omit<Event, "id" | "createdAt" | "updatedAt">;
