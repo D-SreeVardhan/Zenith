@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { HabitsPanel } from "@/components/dashboard/HabitsPanel";
 import { ConsistencyScore } from "@/components/dashboard/ConsistencyScore";
 import { PriorityCalendar } from "@/components/dashboard/PriorityCalendar";

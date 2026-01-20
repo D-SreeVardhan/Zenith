@@ -12,6 +12,7 @@ export interface TimeframeConfig {
 // Habit entity - daily routines to track
 export interface Habit {
   id: string;
+  userId?: string;
   title: string;
   createdAt: string; // ISO date string
   active: boolean;
@@ -22,6 +23,7 @@ export interface Habit {
 // Event entity - deadlines, exams, project submissions
 export interface Event {
   id: string;
+  userId?: string;
   title: string;
   dueAt: string | null; // ISO datetime string, null if no specific due date
   priority: Priority;
@@ -33,6 +35,7 @@ export interface Event {
 // EventTask entity - subtasks for each event
 export interface EventTask {
   id: string;
+  userId?: string;
   eventId: string;
   title: string;
   done: boolean;
@@ -61,6 +64,7 @@ export type ActivityAction =
 
 export interface ActivityLog {
   id: string;
+  userId?: string;
   action: ActivityAction;
   entityType: "habit" | "event" | "task";
   entityId: string;

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { Sun, Moon, Sunrise, Sunset } from "lucide-react";
+import { UserProfileDropdown } from "@/components/shell/UserProfileDropdown";
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -68,9 +69,10 @@ export function AppHeader() {
           </h2>
         )}
       </div>
-      {!isDashboard && (
-        <div className="text-sm text-text-secondary">{today}</div>
-      )}
+      <div className="flex items-center gap-3">
+        {!isDashboard && <div className="text-sm text-text-secondary">{today}</div>}
+        <UserProfileDropdown />
+      </div>
     </header>
   );
 }

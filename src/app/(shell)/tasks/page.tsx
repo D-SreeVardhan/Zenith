@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import Link from "next/link";
 import { ListChecks, ArrowRight } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";

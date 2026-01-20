@@ -16,7 +16,7 @@ import type {
   UpdateEventTaskInput,
   TaskSortMode,
 } from "@/lib/types";
-import { localDexieRepo } from "@/lib/repo/localDexieRepo";
+import { instantDbRepo } from "@/lib/repo/instantDbRepo";
 
 interface AppState {
   // Data
@@ -96,7 +96,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadHabits: async () => {
     set({ isLoading: true });
     try {
-      const habits = await localDexieRepo.getAllHabits();
+      const habits = await instantDbRepo.getAllHabits();
       set({ habits });
     } finally {
       set({ isLoading: false });
@@ -104,19 +104,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   createHabit: async (input) => {
-    const habit = await localDexieRepo.createHabit(input);
+    const habit = await instantDbRepo.createHabit(input);
     set((state) => ({ habits: [...state.habits, habit] }));
 
     // Log activity
     const log = createActivityLogEntry("habit_created", "habit", habit.id, habit.title, habit);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
 
     return habit;
   },
 
   updateHabit: async (id, input) => {
-    const updated = await localDexieRepo.updateHabit(id, input);
+    const updated = await instantDbRepo.updateHabit(id, input);
     set((state) => ({
       habits: state.habits.map((h) => (h.id === id ? updated : h)),
     }));
@@ -127,14 +127,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const habit = get().habits.find((h) => h.id === id);
     if (!habit) return;
 
-    await localDexieRepo.deleteHabit(id);
+    await instantDbRepo.deleteHabit(id);
     set((state) => ({
       habits: state.habits.filter((h) => h.id !== id),
     }));
 
     // Log activity with snapshot for undo
     const log = createActivityLogEntry("habit_deleted", "habit", id, habit.title, habit, true);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
   },
 
@@ -142,7 +142,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const habit = get().habits.find((h) => h.id === id);
     const wasCompleted = habit?.completions.includes(date.split("T")[0]);
 
-    const updated = await localDexieRepo.toggleHabitCompletion(id, date);
+    const updated = await instantDbRepo.toggleHabitCompletion(id, date);
     set((state) => ({
       habits: state.habits.map((h) => (h.id === id ? updated : h)),
     }));
@@ -150,7 +150,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Log activity
     const action = wasCompleted ? "habit_uncompleted" : "habit_completed";
     const log = createActivityLogEntry(action, "habit", id, updated.title, { date }, false);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
   },
 
@@ -160,7 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadEvents: async () => {
     set({ isLoading: true });
     try {
-      const events = await localDexieRepo.getAllEvents();
+      const events = await instantDbRepo.getAllEvents();
       set({ events });
     } finally {
       set({ isLoading: false });
@@ -168,26 +168,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   createEvent: async (input) => {
-    const event = await localDexieRepo.createEvent(input);
+    const event = await instantDbRepo.createEvent(input);
     set((state) => ({ events: [...state.events, event] }));
 
     // Log activity
     const log = createActivityLogEntry("event_created", "event", event.id, event.title, event);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
 
     return event;
   },
 
   updateEvent: async (id, input) => {
-    const updated = await localDexieRepo.updateEvent(id, input);
+    const updated = await instantDbRepo.updateEvent(id, input);
     set((state) => ({
       events: state.events.map((e) => (e.id === id ? updated : e)),
     }));
 
     // Log activity (no undo for updates)
     const log = createActivityLogEntry("event_updated", "event", id, updated.title, null, false);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
   },
 
@@ -197,7 +197,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const tasks = get().eventTasks[id] || [];
     if (!event) return;
 
-    await localDexieRepo.deleteEvent(id);
+    await instantDbRepo.deleteEvent(id);
     set((state) => ({
       events: state.events.filter((e) => e.id !== id),
       eventTasks: Object.fromEntries(
@@ -207,7 +207,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Log activity with snapshot for undo
     const log = createActivityLogEntry("event_deleted", "event", id, event.title, { event, tasks }, true);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
   },
 
@@ -215,14 +215,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   // TASKS
   // ========================
   loadTasksForEvent: async (eventId) => {
-    const tasks = await localDexieRepo.getTasksForEvent(eventId);
+    const tasks = await instantDbRepo.getTasksForEvent(eventId);
     set((state) => ({
       eventTasks: { ...state.eventTasks, [eventId]: tasks },
     }));
   },
 
   createTask: async (input) => {
-    const task = await localDexieRepo.createTask(input);
+    const task = await instantDbRepo.createTask(input);
     set((state) => ({
       eventTasks: {
         ...state.eventTasks,
@@ -232,7 +232,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Log activity
     const log = createActivityLogEntry("task_created", "task", task.id, task.title, task);
-    await localDexieRepo.createActivityLog(log);
+    await instantDbRepo.createActivityLog(log);
     set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
 
     return task;
@@ -246,7 +246,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (taskBefore) break;
     }
 
-    const updated = await localDexieRepo.updateTask(id, input);
+    const updated = await instantDbRepo.updateTask(id, input);
     set((state) => {
       const newEventTasks = { ...state.eventTasks };
       for (const eventId of Object.keys(newEventTasks)) {
@@ -261,7 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (input.done !== undefined && taskBefore && input.done !== taskBefore.done) {
       const action = input.done ? "task_completed" : "task_uncompleted";
       const log = createActivityLogEntry(action, "task", id, updated.title, null, false);
-      await localDexieRepo.createActivityLog(log);
+      await instantDbRepo.createActivityLog(log);
       set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
     }
   },
@@ -270,7 +270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Get task before deleting for undo snapshot
     const task = (get().eventTasks[eventId] || []).find((t) => t.id === id);
 
-    await localDexieRepo.deleteTask(id);
+    await instantDbRepo.deleteTask(id);
     set((state) => ({
       eventTasks: {
         ...state.eventTasks,
@@ -281,13 +281,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Log activity with snapshot for undo
     if (task) {
       const log = createActivityLogEntry("task_deleted", "task", id, task.title, task, true);
-      await localDexieRepo.createActivityLog(log);
+      await instantDbRepo.createActivityLog(log);
       set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
     }
   },
 
   reorderTasks: async (eventId, taskIds) => {
-    await localDexieRepo.reorderTasks(eventId, taskIds);
+    await instantDbRepo.reorderTasks(eventId, taskIds);
     // Update local state with new order
     set((state) => {
       const tasks = state.eventTasks[eventId] || [];
@@ -312,7 +312,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ACTIVITY LOGS
   // ========================
   loadActivityLogs: async () => {
-    const logs = await localDexieRepo.getRecentActivityLogs(100);
+    const logs = await instantDbRepo.getRecentActivityLogs(100);
     set({ activityLogs: logs });
   },
 
@@ -325,16 +325,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     switch (log.action) {
       case "habit_deleted": {
         const habit = snapshot as Habit;
-        const restored = await localDexieRepo.restoreHabit(habit);
+        const restored = await instantDbRepo.restoreHabit(habit);
         set((state) => ({ habits: [...state.habits, restored] }));
         break;
       }
       case "event_deleted": {
         const { event, tasks } = snapshot as { event: Event; tasks: EventTask[] };
-        const restoredEvent = await localDexieRepo.restoreEvent(event);
+        const restoredEvent = await instantDbRepo.restoreEvent(event);
         // Restore all tasks
         for (const task of tasks) {
-          await localDexieRepo.restoreTask(task);
+          await instantDbRepo.restoreTask(task);
         }
         set((state) => ({
           events: [...state.events, restoredEvent],
@@ -344,7 +344,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       case "task_deleted": {
         const task = snapshot as EventTask;
-        const restored = await localDexieRepo.restoreTask(task);
+        const restored = await instantDbRepo.restoreTask(task);
         set((state) => ({
           eventTasks: {
             ...state.eventTasks,
@@ -355,7 +355,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       case "habit_created": {
         const habit = snapshot as Habit;
-        await localDexieRepo.deleteHabit(habit.id);
+        await instantDbRepo.deleteHabit(habit.id);
         set((state) => ({
           habits: state.habits.filter((h) => h.id !== habit.id),
         }));
@@ -363,7 +363,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       case "event_created": {
         const event = snapshot as Event;
-        await localDexieRepo.deleteEvent(event.id);
+        await instantDbRepo.deleteEvent(event.id);
         set((state) => ({
           events: state.events.filter((e) => e.id !== event.id),
           eventTasks: Object.fromEntries(
@@ -374,7 +374,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
       case "task_created": {
         const task = snapshot as EventTask;
-        await localDexieRepo.deleteTask(task.id);
+        await instantDbRepo.deleteTask(task.id);
         set((state) => ({
           eventTasks: {
             ...state.eventTasks,
@@ -386,14 +386,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     // Remove the log entry after undo
-    await localDexieRepo.deleteActivityLog(logId);
+    await instantDbRepo.deleteActivityLog(logId);
     set((state) => ({
       activityLogs: state.activityLogs.filter((l) => l.id !== logId),
     }));
   },
 
   clearActivityLog: async (logId) => {
-    await localDexieRepo.deleteActivityLog(logId);
+    await instantDbRepo.deleteActivityLog(logId);
     set((state) => ({
       activityLogs: state.activityLogs.filter((l) => l.id !== logId),
     }));
