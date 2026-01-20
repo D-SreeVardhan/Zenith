@@ -17,7 +17,7 @@ export default function ShellLayout({
   const router = useRouter();
   const { user, isLoading: authLoading } = instantDb.useAuth();
   const { loadEvents } = useAppStore();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Collapsed by default
   const [hydrated, setHydrated] = useState(false);
   const [migrationReady, setMigrationReady] = useState(false);
 
@@ -33,8 +33,8 @@ export default function ShellLayout({
   }, []);
 
   const marginLeft = useMemo(() => {
-    // During first paint (before hydration), keep layout stable (expanded width).
-    if (!hydrated) return "240px";
+    // During first paint (before hydration), start collapsed.
+    if (!hydrated) return "64px";
     return sidebarCollapsed ? "64px" : "240px";
   }, [hydrated, sidebarCollapsed]);
 
