@@ -142,7 +142,7 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                 exit={{ opacity: 0, scale: 0.98, y: 8 }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
                 className={cn(
-                  "z-[60] w-[min(300px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4 shadow-2xl",
+                  "z-[60] w-[min(340px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-4 shadow-2xl",
                   "relative overflow-hidden"
                 )}
               >
@@ -168,23 +168,23 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                     /* Dropdown Mode */
                     <div className="space-y-3">
                       {/* Display */}
-                      <div className="text-center py-2">
-                        <div className="text-2xl font-bold text-accent tracking-tight">
+                      <div className="text-center py-3">
+                        <div className="text-3xl font-bold text-accent tracking-tight">
                           {selectedHour}:{selectedMinute.toString().padStart(2, '0')} {selectedPeriod}
                         </div>
                       </div>
 
                       {/* Dropdowns */}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-3">
                         {/* Hour Select */}
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           <label className="text-xs font-medium text-text-secondary block text-center">
                             Hour
                           </label>
                           <select
                             value={selectedHour}
                             onChange={(e) => handleDropdownChange(Number(e.target.value), selectedMinute, selectedPeriod)}
-                            className="w-full h-10 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            className="w-full h-11 rounded-lg bg-surface border border-border text-text-primary text-center text-base font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
                           >
                             {hours.map((h) => (
                               <option key={h} value={h}>{h}</option>
@@ -193,14 +193,14 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                         </div>
 
                         {/* Minute Select */}
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           <label className="text-xs font-medium text-text-secondary block text-center">
                             Minute
                           </label>
                           <select
                             value={selectedMinute}
                             onChange={(e) => handleDropdownChange(selectedHour, Number(e.target.value), selectedPeriod)}
-                            className="w-full h-10 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            className="w-full h-11 rounded-lg bg-surface border border-border text-text-primary text-center text-base font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
                           >
                             {minutes.map((m) => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
@@ -209,14 +209,14 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                         </div>
 
                         {/* Period Select */}
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           <label className="text-xs font-medium text-text-secondary block text-center">
                             Period
                           </label>
                           <select
                             value={selectedPeriod}
                             onChange={(e) => handleDropdownChange(selectedHour, selectedMinute, e.target.value as 'AM' | 'PM')}
-                            className="w-full h-10 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+                            className="w-full h-11 rounded-lg bg-surface border border-border text-text-primary text-center text-base font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
                           >
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>

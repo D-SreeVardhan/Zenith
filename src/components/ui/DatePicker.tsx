@@ -84,7 +84,7 @@ export function DatePicker({
                     month={month}
                     onMonthChange={setMonth}
                     selected={selected}
-                    showOutsideDays
+                    showOutsideDays={false}
                     onSelect={(d) => {
                       if (!d) return;
                       onChange(toLocalYmd(d));
@@ -117,7 +117,7 @@ export function DatePicker({
                         "bg-gradient-to-br from-accent/25 to-accent/10 text-accent border border-accent/25",
                       day_today:
                         "bg-surface border border-border-subtle text-text-primary font-semibold",
-                      day_outside: "text-text-muted opacity-35",
+                      day_outside: "invisible opacity-0",
                       day_disabled: "text-text-muted opacity-25",
                       day_hidden: "invisible",
                     }}
