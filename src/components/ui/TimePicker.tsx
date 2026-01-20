@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -15,6 +15,7 @@ interface TimePickerProps {
 
 export function TimePicker({ value, onChange, disabled, placeholder = "Select time" }: TimePickerProps) {
   const [open, setOpen] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
   
   // Parse current value and convert to 12-hour format
   const parse24HourTime = (timeStr: string) => {
@@ -31,14 +32,13 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
   const [selectedMinute, setSelectedMinute] = useState(initialMinute);
   const [selectedPeriod, setSelectedPeriod] = useState<'AM' | 'PM'>(initialPeriod as 'AM' | 'PM');
   
-  const hourRef = useRef<HTMLDivElement>(null);
-  const minuteRef = useRef<HTMLDivElement>(null);
-  const periodRef = useRef<HTMLDivElement>(null);
+  // Manual input states
+  const [hourInput, setHourInput] = useState(initialHour.toString());
+  const [minuteInput, setMinuteInput] = useState(initialMinute.toString().padStart(2, '0'));
   
   // Generate options
   const hours = Array.from({ length: 12 }, (_, i) => i + 1);
-  const minutes = Array.from({ length: 60 }, (_, i) => i);
-  const periods: Array<'AM' | 'PM'> = ['AM', 'PM'];
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5); // 0, 5, 10, ..., 55
   
   // Convert 12-hour format to 24-hour format
   const to24Hour = (hour12: number, period: 'AM' | 'PM') => {
@@ -60,64 +60,30 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
     return `${hour}:${minute.toString().padStart(2, '0')} ${period}`;
   };
   
-  // Update parent when selection changes
-  useEffect(() => {
-    if (open) {
-      const newTime = formatTime(selectedHour, selectedMinute, selectedPeriod);
-      onChange(newTime);
-    }
-  }, [selectedHour, selectedMinute, selectedPeriod, open]);
+  const handleDropdownChange = (hour: number, minute: number, period: 'AM' | 'PM') => {
+    setSelectedHour(hour);
+    setSelectedMinute(minute);
+    setSelectedPeriod(period);
+    const newTime = formatTime(hour, minute, period);
+    onChange(newTime);
+  };
   
-  // Scroll to selected item when opened
-  useEffect(() => {
-    if (open) {
-      const scrollToSelected = (ref: React.RefObject<HTMLDivElement>, index: number) => {
-        if (ref.current) {
-          const itemHeight = 40; // Height of each item
-          ref.current.scrollTop = index * itemHeight;
-        }
-      };
-      
-      setTimeout(() => {
-        scrollToSelected(hourRef, selectedHour - 1);
-        scrollToSelected(minuteRef, selectedMinute);
-        scrollToSelected(periodRef, selectedPeriod === 'AM' ? 0 : 1);
-      }, 50);
-    }
-  }, [open]);
-  
-  // Handle scroll events to update selection (debounced)
-  const handleScroll = (
-    ref: React.RefObject<HTMLDivElement>,
-    setter: (value: any) => void,
-    values: any[]
-  ) => {
-    if (!ref.current) return;
+  const handleManualSubmit = () => {
+    const hour = parseInt(hourInput) || 12;
+    const minute = parseInt(minuteInput) || 0;
     
-    // Clear any existing timeout
-    if (ref.current.dataset.scrollTimeout) {
-      clearTimeout(Number(ref.current.dataset.scrollTimeout));
-    }
+    // Validate
+    const validHour = Math.max(1, Math.min(12, hour));
+    const validMinute = Math.max(0, Math.min(59, minute));
     
-    // Set new timeout to update after scroll settles
-    const timeoutId = setTimeout(() => {
-      if (!ref.current) return;
-      
-      const itemHeight = 40;
-      const scrollTop = ref.current.scrollTop;
-      const index = Math.round(scrollTop / itemHeight);
-      const clampedIndex = Math.max(0, Math.min(index, values.length - 1));
-      
-      setter(values[clampedIndex]);
-      
-      // Snap to position
-      ref.current.scrollTo({
-        top: clampedIndex * itemHeight,
-        behavior: 'smooth'
-      });
-    }, 100);
+    setSelectedHour(validHour);
+    setSelectedMinute(validMinute);
+    setHourInput(validHour.toString());
+    setMinuteInput(validMinute.toString().padStart(2, '0'));
     
-    ref.current.dataset.scrollTimeout = String(timeoutId);
+    const newTime = formatTime(validHour, validMinute, selectedPeriod);
+    onChange(newTime);
+    setManualMode(false);
   };
   
   const handleClear = () => {
@@ -135,6 +101,8 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
     setSelectedHour(hour12);
     setSelectedMinute(minute);
     setSelectedPeriod(period);
+    setHourInput(hour12.toString());
+    setMinuteInput(minute.toString().padStart(2, '0'));
     
     const newTime = formatTime(hour12, minute, period);
     onChange(newTime);
@@ -164,7 +132,7 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
             <Popover.Content 
               asChild 
               sideOffset={10} 
-              align="center"
+              align="start"
               collisionPadding={16}
               avoidCollisions={true}
             >
@@ -174,153 +142,135 @@ export function TimePicker({ value, onChange, disabled, placeholder = "Select ti
                 exit={{ opacity: 0, scale: 0.98, y: 8 }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
                 className={cn(
-                  "z-[60] w-[min(300px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated shadow-2xl",
+                  "z-[60] w-[min(300px,calc(100vw-2rem))] rounded-2xl border border-border bg-surface-elevated p-3 sm:p-4 shadow-2xl",
                   "relative overflow-hidden"
                 )}
               >
                 {/* Soft top glow */}
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,169,98,0.08),transparent_60%)]" />
 
-                <div className="relative">
-                  {/* Header */}
-                  <div className="text-center py-3 border-b border-border-subtle">
-                    <div className="text-xs text-text-muted">Select time</div>
+                <div className="relative space-y-3">
+                  {/* Header with mode toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-text-muted">
+                      {manualMode ? "Type time" : "Select time"}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setManualMode(!manualMode)}
+                      className="text-xs text-accent hover:text-accent-hover transition-colors"
+                    >
+                      {manualMode ? "Use dropdowns" : "Type manually"}
+                    </button>
                   </div>
 
-                  {/* iOS-style wheel pickers */}
-                  <div className="flex items-center justify-center gap-2 py-4 px-3">
-                    {/* Hour Wheel */}
-                    <div className="flex-1 relative">
-                      <div className="absolute inset-0 pointer-events-none z-10">
-                        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-10 bg-accent/10 border-y border-accent/20 rounded-lg" />
+                  {!manualMode ? (
+                    /* Dropdown Mode */
+                    <div className="space-y-3">
+                      {/* Display */}
+                      <div className="text-center py-2">
+                        <div className="text-2xl font-bold text-accent tracking-tight">
+                          {selectedHour}:{selectedMinute.toString().padStart(2, '0')} {selectedPeriod}
+                        </div>
                       </div>
-                      <div
-                        ref={hourRef}
-                        onScroll={() => handleScroll(hourRef, setSelectedHour, hours)}
-                        className="h-[160px] overflow-y-scroll scrollbar-hide snap-y snap-mandatory touch-pan-y"
-                        style={{ 
-                          scrollbarWidth: 'none',
-                          WebkitOverflowScrolling: 'touch'
-                        }}
-                      >
-                        <div className="h-[60px]" /> {/* Top padding */}
-                        {hours.map((h) => (
-                          <div
-                            key={h}
-                            onClick={() => {
-                              setSelectedHour(h);
-                              if (hourRef.current) {
-                                const itemHeight = 40;
-                                const index = h - 1;
-                                hourRef.current.scrollTo({
-                                  top: index * itemHeight,
-                                  behavior: 'smooth'
-                                });
-                              }
-                            }}
-                            className={cn(
-                              "w-full h-10 flex items-center justify-center snap-center transition-all cursor-pointer",
-                              selectedHour === h
-                                ? "text-accent text-lg font-bold"
-                                : "text-text-muted text-base hover:text-text-secondary"
-                            )}
+
+                      {/* Dropdowns */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Hour Select */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-text-secondary block text-center">
+                            Hour
+                          </label>
+                          <select
+                            value={selectedHour}
+                            onChange={(e) => handleDropdownChange(Number(e.target.value), selectedMinute, selectedPeriod)}
+                            className="w-full h-10 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
                           >
-                            {h}
-                          </div>
-                        ))}
-                        <div className="h-[60px]" /> {/* Bottom padding */}
+                            {hours.map((h) => (
+                              <option key={h} value={h}>{h}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Minute Select */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-text-secondary block text-center">
+                            Minute
+                          </label>
+                          <select
+                            value={selectedMinute}
+                            onChange={(e) => handleDropdownChange(selectedHour, Number(e.target.value), selectedPeriod)}
+                            className="w-full h-10 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+                          >
+                            {minutes.map((m) => (
+                              <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Period Select */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-text-secondary block text-center">
+                            Period
+                          </label>
+                          <select
+                            value={selectedPeriod}
+                            onChange={(e) => handleDropdownChange(selectedHour, selectedMinute, e.target.value as 'AM' | 'PM')}
+                            className="w-full h-10 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-medium cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="text-2xl font-bold text-text-muted">:</div>
-
-                    {/* Minute Wheel */}
-                    <div className="flex-1 relative">
-                      <div className="absolute inset-0 pointer-events-none z-10">
-                        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-10 bg-accent/10 border-y border-accent/20 rounded-lg" />
+                  ) : (
+                    /* Manual Input Mode */
+                    <div className="space-y-3">
+                      {/* Manual Inputs */}
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          max="12"
+                          value={hourInput}
+                          onChange={(e) => setHourInput(e.target.value)}
+                          onBlur={handleManualSubmit}
+                          className="w-16 h-12 rounded-lg bg-surface border border-border text-text-primary text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-accent/40"
+                          placeholder="HH"
+                        />
+                        <span className="text-2xl font-bold text-text-muted">:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          value={minuteInput}
+                          onChange={(e) => setMinuteInput(e.target.value)}
+                          onBlur={handleManualSubmit}
+                          className="w-16 h-12 rounded-lg bg-surface border border-border text-text-primary text-center text-xl font-bold focus:outline-none focus:ring-2 focus:ring-accent/40"
+                          placeholder="MM"
+                        />
+                        <select
+                          value={selectedPeriod}
+                          onChange={(e) => {
+                            setSelectedPeriod(e.target.value as 'AM' | 'PM');
+                            handleDropdownChange(selectedHour, selectedMinute, e.target.value as 'AM' | 'PM');
+                          }}
+                          className="w-16 h-12 rounded-lg bg-surface border border-border text-text-primary text-center text-sm font-bold cursor-pointer hover:bg-surface-hover transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40"
+                        >
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
                       </div>
-                      <div
-                        ref={minuteRef}
-                        onScroll={() => handleScroll(minuteRef, setSelectedMinute, minutes)}
-                        className="h-[160px] overflow-y-scroll scrollbar-hide snap-y snap-mandatory touch-pan-y"
-                        style={{ 
-                          scrollbarWidth: 'none',
-                          WebkitOverflowScrolling: 'touch'
-                        }}
-                      >
-                        <div className="h-[60px]" /> {/* Top padding */}
-                        {minutes.map((m) => (
-                          <div
-                            key={m}
-                            onClick={() => {
-                              setSelectedMinute(m);
-                              if (minuteRef.current) {
-                                const itemHeight = 40;
-                                minuteRef.current.scrollTo({
-                                  top: m * itemHeight,
-                                  behavior: 'smooth'
-                                });
-                              }
-                            }}
-                            className={cn(
-                              "w-full h-10 flex items-center justify-center snap-center transition-all cursor-pointer",
-                              selectedMinute === m
-                                ? "text-accent text-lg font-bold"
-                                : "text-text-muted text-base hover:text-text-secondary"
-                            )}
-                          >
-                            {m.toString().padStart(2, '0')}
-                          </div>
-                        ))}
-                        <div className="h-[60px]" /> {/* Bottom padding */}
+
+                      <div className="text-xs text-center text-text-muted">
+                        Press Enter or click outside to apply
                       </div>
                     </div>
-
-                    {/* AM/PM Wheel */}
-                    <div className="w-16 relative">
-                      <div className="absolute inset-0 pointer-events-none z-10">
-                        <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-10 bg-accent/10 border-y border-accent/20 rounded-lg" />
-                      </div>
-                      <div
-                        ref={periodRef}
-                        onScroll={() => handleScroll(periodRef, setSelectedPeriod, periods)}
-                        className="h-[160px] overflow-y-scroll scrollbar-hide snap-y snap-mandatory touch-pan-y"
-                        style={{ 
-                          scrollbarWidth: 'none',
-                          WebkitOverflowScrolling: 'touch'
-                        }}
-                      >
-                        <div className="h-[60px]" /> {/* Top padding */}
-                        {periods.map((p, index) => (
-                          <div
-                            key={p}
-                            onClick={() => {
-                              setSelectedPeriod(p);
-                              if (periodRef.current) {
-                                const itemHeight = 40;
-                                periodRef.current.scrollTo({
-                                  top: index * itemHeight,
-                                  behavior: 'smooth'
-                                });
-                              }
-                            }}
-                            className={cn(
-                              "w-full h-10 flex items-center justify-center snap-center transition-all cursor-pointer",
-                              selectedPeriod === p
-                                ? "text-accent text-lg font-bold"
-                                : "text-text-muted text-base hover:text-text-secondary"
-                            )}
-                          >
-                            {p}
-                          </div>
-                        ))}
-                        <div className="h-[60px]" /> {/* Bottom padding */}
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Actions */}
-                  <div className="flex gap-2 px-3 pb-3 border-t border-border-subtle pt-3">
+                  <div className="flex gap-2 pt-2 border-t border-border-subtle">
                     <button
                       type="button"
                       onClick={handleClear}
