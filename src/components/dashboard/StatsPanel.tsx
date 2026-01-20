@@ -175,10 +175,17 @@ export function StatsPanel() {
 
     const bestDay = Object.entries(dayCompletions).sort((a, b) => b[1] - a[1])[0];
 
+    // Focus Score - days completed vs days scheduled this week
+    const focusScore = thisWeekScheduled > 0 
+      ? Math.round((thisWeekCompletions / thisWeekScheduled) * 100)
+      : 0;
+    
+    const focusDiff = focusScore - lastWeekRate;
+
     return {
-      winRate,
-      rateTrend: rateDiff > 0 ? "up" : rateDiff < 0 ? "down" : "neutral",
-      rateDiff: rateDiff > 0 ? `+${rateDiff}%` : `${rateDiff}%`,
+      focusScore,
+      focusTrend: focusDiff > 0 ? "up" : focusDiff < 0 ? "down" : "neutral",
+      focusDiff: focusDiff > 0 ? `+${focusDiff}%` : focusDiff < 0 ? `${focusDiff}%` : "Same as",
       activeEventsCount: activeEvents.length,
       overdueCount: overdueEvents.length,
       totalTasks: allTasks.length,
@@ -203,11 +210,11 @@ export function StatsPanel() {
       
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Win Rate"
-          value={`${stats.winRate}%`}
+          title="Focus Score"
+          value={`${stats.focusScore}%`}
           subtitle={`${stats.thisWeekCompletions} / ${stats.thisWeekScheduled} habits`}
-          trend={stats.rateTrend as "up" | "down" | "neutral"}
-          trendValue={stats.rateDiff}
+          trend={stats.focusTrend as "up" | "down" | "neutral"}
+          trendValue={stats.focusDiff}
           icon={<Target className="h-5 w-5" />}
           color="amber"
           delay={0}
