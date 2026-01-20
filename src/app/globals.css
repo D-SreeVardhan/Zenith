@@ -180,6 +180,16 @@ body {
     @apply min-h-[44px] min-w-[44px];
   }
   
+  /* Hide scrollbar for wheel picker */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
   /* Responsive padding utilities */
   .responsive-p {
     @apply p-4 sm:p-6;
