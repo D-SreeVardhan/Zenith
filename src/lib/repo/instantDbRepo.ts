@@ -9,15 +9,22 @@ import type {
   Event,
   EventTask,
   Habit,
+  UserProfile,
   UpdateEventInput,
   UpdateEventTaskInput,
   UpdateHabitInput,
 } from "@/lib/types";
 
-async function requireUserId(): Promise<string> {
+async function requireAuth(): Promise<{ userId: string; userEmail?: string }> {
   const auth = await instantDb.getAuth();
   if (!auth?.id) throw new Error("Not authenticated");
-  return auth.id;
+  return { userId: auth.id, userEmail: auth.email ?? undefined };
+}
+
+async function requireEmailAuth(): Promise<{ userId: string; userEmail: string }> {
+  const auth = await requireAuth();
+  if (!auth.userEmail) throw new Error("No email available for this session");
+  return { userId: auth.userId, userEmail: auth.userEmail };
 }
 
 function normalizeHabit(raw: Habit): Habit {
@@ -44,6 +51,7 @@ function normalizeHabit(raw: Habit): Habit {
 
   return {
     ...raw,
+    completionMode: raw.completionMode === "strict" ? "strict" : "flexible",
     completions,
     weekStartDate,
     weeklyCompletionCount,
@@ -56,7 +64,7 @@ export const instantDbRepo: Repository = {
   // HABITS
   // ========================
   async getAllHabits(): Promise<Habit[]> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       habits: {
         $: { where: { userId } },
@@ -66,7 +74,7 @@ export const instantDbRepo: Repository = {
   },
 
   async getHabit(id: string): Promise<Habit | undefined> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       habits: {
         $: { where: { userId, id } },
@@ -77,7 +85,7 @@ export const instantDbRepo: Repository = {
   },
 
   async createHabit(input: CreateHabitInput): Promise<Habit> {
-    const userId = await requireUserId();
+    const { userId, userEmail } = await requireAuth();
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const completions: string[] = [];
@@ -86,10 +94,12 @@ export const instantDbRepo: Repository = {
       (input as unknown as { scheduledWeekdays?: number[] }).scheduledWeekdays
     );
     const weeklyCompletionCount = 0;
+    const completionMode = input.completionMode === "strict" ? "strict" : "flexible";
 
     await instantDb.transact(
       instantDb.tx.habits[id].create({
         userId,
+        userEmail,
         title: input.title,
         active: input.active,
         createdAt,
@@ -98,27 +108,31 @@ export const instantDbRepo: Repository = {
         weekStartDate,
         weeklyCompletionCount,
         scheduledWeekdays,
+        completionMode,
       })
     );
 
     return normalizeHabit({
       id,
       userId,
+      userEmail,
       ...input,
       createdAt,
       completions,
       weekStartDate,
       weeklyCompletionCount,
       scheduledWeekdays,
+      completionMode,
     } as Habit);
   },
 
   async updateHabit(id: string, input: UpdateHabitInput): Promise<Habit> {
-    const userId = await requireUserId();
+    const { userId, userEmail } = await requireAuth();
     await instantDb.transact(
       instantDb.tx.habits[id].update({
         ...input,
         userId,
+        userEmail,
       })
     );
     const updated = await this.getHabit(id);
@@ -127,7 +141,7 @@ export const instantDbRepo: Repository = {
   },
 
   async deleteHabit(id: string): Promise<void> {
-    await requireUserId();
+    await requireAuth();
     await instantDb.transact(instantDb.tx.habits[id].delete());
   },
 
@@ -165,8 +179,10 @@ export const instantDbRepo: Repository = {
   },
 
   async restoreHabit(habit: Habit): Promise<Habit> {
-    const userId = habit.userId ?? (await requireUserId());
-    const normalized = normalizeHabit({ ...habit, userId });
+    const auth = await requireAuth();
+    const userId = habit.userId ?? auth.userId;
+    const userEmail = habit.userEmail ?? auth.userEmail;
+    const normalized = normalizeHabit({ ...habit, userId, userEmail });
     await instantDb.transact(
       instantDb.tx.habits[habit.id].update({
         ...normalized,
@@ -181,7 +197,7 @@ export const instantDbRepo: Repository = {
   // EVENTS
   // ========================
   async getAllEvents(): Promise<Event[]> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       events: {
         $: { where: { userId } },
@@ -191,7 +207,7 @@ export const instantDbRepo: Repository = {
   },
 
   async getEvent(id: string): Promise<Event | undefined> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       events: {
         $: { where: { userId, id } },
@@ -201,13 +217,14 @@ export const instantDbRepo: Repository = {
   },
 
   async createEvent(input: CreateEventInput): Promise<Event> {
-    const userId = await requireUserId();
+    const { userId, userEmail } = await requireAuth();
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
 
     await instantDb.transact(
       instantDb.tx.events[id].create({
         userId,
+        userEmail,
         title: input.title,
         dueAt: input.dueAt,
         priority: input.priority,
@@ -220,6 +237,7 @@ export const instantDbRepo: Repository = {
     return {
       id,
       userId,
+      userEmail,
       ...input,
       createdAt: now,
       updatedAt: now,
@@ -227,11 +245,12 @@ export const instantDbRepo: Repository = {
   },
 
   async updateEvent(id: string, input: UpdateEventInput): Promise<Event> {
-    const userId = await requireUserId();
+    const { userId, userEmail } = await requireAuth();
     await instantDb.transact(
       instantDb.tx.events[id].update({
         ...input,
         userId,
+        userEmail,
         updatedAt: new Date().toISOString(),
       })
     );
@@ -241,7 +260,7 @@ export const instantDbRepo: Repository = {
   },
 
   async deleteEvent(id: string): Promise<void> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       eventTasks: {
         $: { where: { userId, eventId: id } },
@@ -256,16 +275,20 @@ export const instantDbRepo: Repository = {
   },
 
   async restoreEvent(event: Event): Promise<Event> {
-    const userId = event.userId ?? (await requireUserId());
-    await instantDb.transact(instantDb.tx.events[event.id].update({ ...event, userId }));
-    return { ...event, userId };
+    const auth = await requireAuth();
+    const userId = event.userId ?? auth.userId;
+    const userEmail = event.userEmail ?? auth.userEmail;
+    await instantDb.transact(
+      instantDb.tx.events[event.id].update({ ...event, userId, userEmail })
+    );
+    return { ...event, userId, userEmail };
   },
 
   // ========================
   // EVENT TASKS
   // ========================
   async getTasksForEvent(eventId: string): Promise<EventTask[]> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       eventTasks: {
         $: { where: { userId, eventId } },
@@ -275,7 +298,7 @@ export const instantDbRepo: Repository = {
   },
 
   async getTask(id: string): Promise<EventTask | undefined> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       eventTasks: {
         $: { where: { userId, id } },
@@ -285,7 +308,7 @@ export const instantDbRepo: Repository = {
   },
 
   async createTask(input: CreateEventTaskInput): Promise<EventTask> {
-    const userId = await requireUserId();
+    const { userId, userEmail } = await requireAuth();
     const existing = await this.getTasksForEvent(input.eventId);
     const maxOrder = existing.reduce((max, t) => Math.max(max, t.order), -1);
     const now = new Date().toISOString();
@@ -295,6 +318,7 @@ export const instantDbRepo: Repository = {
     await instantDb.transact(
       instantDb.tx.eventTasks[id].create({
         userId,
+        userEmail,
         eventId: input.eventId,
         title: input.title,
         done: input.done,
@@ -308,6 +332,7 @@ export const instantDbRepo: Repository = {
     return {
       id,
       userId,
+      userEmail,
       ...input,
       createdAt: now,
       updatedAt: now,
@@ -316,11 +341,12 @@ export const instantDbRepo: Repository = {
   },
 
   async updateTask(id: string, input: UpdateEventTaskInput): Promise<EventTask> {
-    const userId = await requireUserId();
+    const { userId, userEmail } = await requireAuth();
     await instantDb.transact(
       instantDb.tx.eventTasks[id].update({
         ...input,
         userId,
+        userEmail,
         updatedAt: new Date().toISOString(),
       })
     );
@@ -330,7 +356,7 @@ export const instantDbRepo: Repository = {
   },
 
   async deleteTask(id: string): Promise<void> {
-    await requireUserId();
+    await requireAuth();
     await instantDb.transact(instantDb.tx.eventTasks[id].delete());
   },
 
@@ -345,16 +371,20 @@ export const instantDbRepo: Repository = {
   },
 
   async restoreTask(task: EventTask): Promise<EventTask> {
-    const userId = task.userId ?? (await requireUserId());
-    await instantDb.transact(instantDb.tx.eventTasks[task.id].update({ ...task, userId }));
-    return { ...task, userId };
+    const auth = await requireAuth();
+    const userId = task.userId ?? auth.userId;
+    const userEmail = task.userEmail ?? auth.userEmail;
+    await instantDb.transact(
+      instantDb.tx.eventTasks[task.id].update({ ...task, userId, userEmail })
+    );
+    return { ...task, userId, userEmail };
   },
 
   // ========================
   // ACTIVITY LOGS
   // ========================
   async getAllActivityLogs(): Promise<ActivityLog[]> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       activityLogs: {
         $: { where: { userId }, order: { timestamp: "desc" } },
@@ -364,7 +394,7 @@ export const instantDbRepo: Repository = {
   },
 
   async getRecentActivityLogs(limit: number): Promise<ActivityLog[]> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const { data } = await instantDb.queryOnce({
       activityLogs: {
         $: { where: { userId }, order: { timestamp: "desc" }, limit },
@@ -374,19 +404,21 @@ export const instantDbRepo: Repository = {
   },
 
   async createActivityLog(log: ActivityLog): Promise<ActivityLog> {
-    const userId = log.userId ?? (await requireUserId());
-    const payload = { ...log, userId };
+    const auth = await requireAuth();
+    const userId = log.userId ?? auth.userId;
+    const userEmail = log.userEmail ?? auth.userEmail;
+    const payload = { ...log, userId, userEmail };
     await instantDb.transact(instantDb.tx.activityLogs[log.id].create(payload));
     return payload;
   },
 
   async deleteActivityLog(id: string): Promise<void> {
-    await requireUserId();
+    await requireAuth();
     await instantDb.transact(instantDb.tx.activityLogs[id].delete());
   },
 
   async clearOldActivityLogs(olderThanDays: number): Promise<void> {
-    const userId = await requireUserId();
+    const { userId } = await requireAuth();
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - olderThanDays);
     const cutoffStr = cutoff.toISOString();
@@ -399,5 +431,114 @@ export const instantDbRepo: Repository = {
     if (old.length === 0) return;
     await instantDb.transact(old.map((l) => instantDb.tx.activityLogs[l.id].delete()));
   },
+
+  // ========================
+  // PROFILE / SETTINGS
+  // ========================
+  async getProfile(): Promise<UserProfile | undefined> {
+    const { userId } = await requireAuth();
+    const { data } = await instantDb.queryOnce({
+      profiles: {
+        $: { where: { userId } },
+      },
+    });
+    return (data.profiles?.[0] as UserProfile | undefined) ?? undefined;
+  },
+
+  async upsertProfile(
+    input: Partial<Omit<UserProfile, "id" | "userId">>
+  ): Promise<UserProfile> {
+    const { userId, userEmail } = await requireAuth();
+    const now = new Date().toISOString();
+    const existing = await this.getProfile();
+    const id = existing?.id ?? userId;
+    const payload: UserProfile = {
+      id,
+      userId,
+      userEmail,
+      username: existing?.username,
+      avatarUrl: existing?.avatarUrl,
+      themePrimary: existing?.themePrimary,
+      themeAccent: existing?.themeAccent,
+      updatedAt: now,
+      ...existing,
+      ...input,
+    };
+
+    if (existing) {
+      await instantDb.transact(instantDb.tx.profiles[id].update(payload));
+    } else {
+      await instantDb.transact(instantDb.tx.profiles[id].create(payload));
+    }
+
+    return payload;
+  },
 };
+
+export async function backfillUserEmail(): Promise<void> {
+  const { userId, userEmail } = await requireEmailAuth();
+
+  // Habits
+  {
+    const { data } = await instantDb.queryOnce({
+      habits: { $: { where: { userId } } },
+    });
+    const habits = (data.habits ?? []) as Array<{ id: string; userEmail?: string }>;
+    const steps = habits
+      .filter((h) => !h.userEmail)
+      .slice(0, 200)
+      .map((h) => instantDb.tx.habits[h.id].update({ userEmail }));
+    if (steps.length) await instantDb.transact(steps);
+  }
+
+  // Events
+  {
+    const { data } = await instantDb.queryOnce({
+      events: { $: { where: { userId } } },
+    });
+    const events = (data.events ?? []) as Array<{ id: string; userEmail?: string }>;
+    const steps = events
+      .filter((e) => !e.userEmail)
+      .slice(0, 200)
+      .map((e) => instantDb.tx.events[e.id].update({ userEmail }));
+    if (steps.length) await instantDb.transact(steps);
+  }
+
+  // Event tasks
+  {
+    const { data } = await instantDb.queryOnce({
+      eventTasks: { $: { where: { userId } } },
+    });
+    const tasks = (data.eventTasks ?? []) as Array<{ id: string; userEmail?: string }>;
+    const steps = tasks
+      .filter((t) => !t.userEmail)
+      .slice(0, 400)
+      .map((t) => instantDb.tx.eventTasks[t.id].update({ userEmail }));
+    if (steps.length) await instantDb.transact(steps);
+  }
+
+  // Activity logs
+  {
+    const { data } = await instantDb.queryOnce({
+      activityLogs: { $: { where: { userId } } },
+    });
+    const logs = (data.activityLogs ?? []) as Array<{ id: string; userEmail?: string }>;
+    const steps = logs
+      .filter((l) => !l.userEmail)
+      .slice(0, 400)
+      .map((l) => instantDb.tx.activityLogs[l.id].update({ userEmail }));
+    if (steps.length) await instantDb.transact(steps);
+  }
+
+  // Profile
+  {
+    const { data } = await instantDb.queryOnce({
+      profiles: { $: { where: { userId } } },
+    });
+    const p = (data.profiles?.[0] as { id: string; userEmail?: string } | undefined) ?? undefined;
+    if (p && !p.userEmail) {
+      await instantDb.transact(instantDb.tx.profiles[p.id].update({ userEmail }));
+    }
+  }
+}
 

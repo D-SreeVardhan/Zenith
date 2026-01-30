@@ -13,6 +13,7 @@ export interface TimeframeConfig {
 export interface Habit {
   id: string;
   userId?: string;
+  userEmail?: string;
   title: string;
   createdAt: string; // ISO date string
   active: boolean;
@@ -23,12 +24,14 @@ export interface Habit {
   weeklyCompletionCount: number; // Count of completions in the current week (Mon..Sun)
   // Optional per-habit weekly schedule (0=Mon .. 6=Sun). If omitted, defaults to all days.
   scheduledWeekdays?: number[];
+  completionMode?: "strict" | "flexible";
 }
 
 // Event entity - deadlines, exams, project submissions
 export interface Event {
   id: string;
   userId?: string;
+  userEmail?: string;
   title: string;
   dueAt: string | null; // ISO datetime string, null if no specific due date
   priority: Priority;
@@ -41,6 +44,7 @@ export interface Event {
 export interface EventTask {
   id: string;
   userId?: string;
+  userEmail?: string;
   eventId: string;
   title: string;
   done: boolean;
@@ -48,6 +52,20 @@ export interface EventTask {
   createdAt: string; // ISO datetime string
   updatedAt: string; // ISO datetime string
   order: number; // For custom ordering via drag-and-drop
+}
+
+export interface UserProfile {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  username?: string;
+  avatarUrl?: string;
+  themePrimary?: string;
+  themeAccent?: string;
+  themeMode?: "dark" | "light";
+  timeFormat?: "12h" | "24h";
+  timeFont?: "system" | "mono" | "serif" | "rounded";
+  updatedAt?: string;
 }
 
 // Sort modes for tasks
@@ -70,6 +88,7 @@ export type ActivityAction =
 export interface ActivityLog {
   id: string;
   userId?: string;
+  userEmail?: string;
   action: ActivityAction;
   entityType: "habit" | "event" | "task";
   entityId: string;

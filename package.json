@@ -30,6 +30,7 @@
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
+    "react-easy-crop": "^5.5.6",
     "recharts": "^3.6.0",
     "tailwind-merge": "^2.5.4",
     "zustand": "^4.5.5"

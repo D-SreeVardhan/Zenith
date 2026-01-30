@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   CalendarClock,
   ListChecks,
-  History,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,9 +35,9 @@ const navItems: NavItem[] = [
     matchPattern: /^\/tasks/,
   },
   {
-    href: "/activity",
-    label: "Activity",
-    icon: <History className="h-5 w-5" />,
+    href: "/settings",
+    label: "Settings",
+    icon: <Settings className="h-5 w-5" />,
   },
 ];
 

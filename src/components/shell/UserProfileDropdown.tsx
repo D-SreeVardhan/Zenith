@@ -5,6 +5,7 @@ import { LogOut, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { instantDb } from "@/lib/instantdb";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/store/useAppStore";
 
 function initialsFromEmail(email?: string | null) {
   if (!email) return "U";
@@ -18,9 +19,11 @@ function initialsFromEmail(email?: string | null) {
 export function UserProfileDropdown({ className }: { className?: string }) {
   const router = useRouter();
   const { user } = instantDb.useAuth();
+  const profile = useAppStore((s) => s.profile);
 
   const email = user?.email ?? "";
   const initials = initialsFromEmail(email);
+  const displayName = profile?.username?.trim() || email;
 
   if (!user?.id) return null;
 
@@ -34,10 +37,20 @@ export function UserProfileDropdown({ className }: { className?: string }) {
           )}
           aria-label="Open user menu"
         >
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent ring-1 ring-accent/25">
-            {initials}
-          </span>
-          <span className="hidden max-w-[180px] truncate sm:block">{email}</span>
+          {profile?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.avatarUrl}
+              alt=""
+              className="h-7 w-7 rounded-full object-cover ring-1 ring-border"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent ring-1 ring-accent/25">
+              {initials}
+            </span>
+          )}
+          <span className="hidden max-w-[180px] truncate sm:block">{displayName}</span>
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -48,12 +61,25 @@ export function UserProfileDropdown({ className }: { className?: string }) {
         >
           <div className="px-2.5 py-2">
             <div className="flex items-center gap-2">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent ring-1 ring-accent/25">
-                {initials}
-              </span>
+              {profile?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatarUrl}
+                  alt=""
+                  className="h-9 w-9 rounded-full object-cover ring-1 ring-border"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-accent/15 text-sm font-semibold text-accent ring-1 ring-accent/25">
+                  {initials}
+                </span>
+              )}
               <div className="min-w-0">
                 <p className="text-sm font-medium text-text-primary">Signed in</p>
                 <p className="truncate text-xs text-text-secondary">{email}</p>
+                {profile?.username && (
+                  <p className="truncate text-[11px] text-text-muted">{profile.username}</p>
+                )}
               </div>
             </div>
           </div>

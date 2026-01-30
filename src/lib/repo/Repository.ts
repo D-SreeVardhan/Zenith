@@ -3,6 +3,7 @@ import type {
   Event,
   EventTask,
   ActivityLog,
+  UserProfile,
   CreateHabitInput,
   UpdateHabitInput,
   CreateEventInput,
@@ -45,4 +46,10 @@ export interface Repository {
   createActivityLog(log: ActivityLog): Promise<ActivityLog>;
   deleteActivityLog(id: string): Promise<void>;
   clearOldActivityLogs(olderThanDays: number): Promise<void>;
+
+  // Profile / Settings
+  getProfile(): Promise<UserProfile | undefined>;
+  upsertProfile(
+    input: Partial<Omit<UserProfile, "id" | "userId">>
+  ): Promise<UserProfile>;
 }

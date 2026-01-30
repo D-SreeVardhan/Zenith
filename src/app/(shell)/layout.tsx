@@ -9,6 +9,8 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { instantDb } from "@/lib/instantdb";
 import { migrateLocalDataToInstant } from "@/lib/migration/migrateLocalData";
 import { useAppStore } from "@/store/useAppStore";
+import { applyTheme } from "@/lib/theme";
+import { backfillUserEmail } from "@/lib/repo/instantDbRepo";
 
 export default function ShellLayout({
   children,
@@ -17,7 +19,11 @@ export default function ShellLayout({
 }) {
   const router = useRouter();
   const { user, isLoading: authLoading } = instantDb.useAuth();
-  const { loadEvents } = useAppStore();
+  const devBypassLogin =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_DEV_BYPASS_LOGIN === "1";
+  const { loadEvents, loadProfile } = useAppStore();
+  const profile = useAppStore((s) => s.profile);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Collapsed by default
   const [hydrated, setHydrated] = useState(false);
   const [migrationReady, setMigrationReady] = useState(false);
@@ -60,9 +66,16 @@ export default function ShellLayout({
 
   useEffect(() => {
     if (!user?.id) {
+      if (devBypassLogin && !authLoading) {
+        // Dev-only: bypass email login for local testing.
+        instantDb.auth.signInAsGuest().catch((e) => {
+          console.error("Dev guest sign-in failed", e);
+        });
+        return;
+      }
       router.replace("/auth/login");
     }
-  }, [router, user?.id]);
+  }, [router, user?.id, authLoading, devBypassLogin]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -85,6 +98,37 @@ export default function ShellLayout({
     if (!migrationReady) return;
     loadEvents();
   }, [loadEvents, migrationReady]);
+
+  // Load profile/settings after auth is ready.
+  useEffect(() => {
+    if (!user?.id) return;
+    loadProfile();
+  }, [user?.id, loadProfile]);
+
+  // Apply theme from profile (if set).
+  useEffect(() => {
+    applyTheme({
+      mode: profile?.themeMode === "light" ? "light" : "dark",
+      primaryHex: profile?.themePrimary,
+      accentHex: profile?.themeAccent,
+    });
+  }, [profile?.themeMode, profile?.themePrimary, profile?.themeAccent]);
+
+  // Backfill userEmail for older rows after email login.
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!user.email) return; // guest sessions have no email
+    const key = `dt.backfillEmail.${user.id}.${user.email}`;
+    try {
+      if (localStorage.getItem(key) === "1") return;
+      localStorage.setItem(key, "1");
+    } catch {
+      // ignore
+    }
+    backfillUserEmail().catch((e) => {
+      console.error("userEmail backfill failed", e);
+    });
+  }, [user?.id, user?.email]);
 
   if (!user?.id) {
     return (

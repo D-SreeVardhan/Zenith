@@ -7,6 +7,7 @@ import type {
   Event,
   EventTask,
   ActivityLog,
+  UserProfile,
   CreateHabitInput,
   UpdateHabitInput,
   CreateEventInput,
@@ -255,5 +256,37 @@ export const localDexieRepo: Repository = {
     cutoff.setDate(cutoff.getDate() - olderThanDays);
     const cutoffStr = cutoff.toISOString();
     await db.activityLogs.where("timestamp").below(cutoffStr).delete();
+  },
+
+  // ========================
+  // PROFILE (local-only fallback)
+  // ========================
+  async getProfile(): Promise<UserProfile | undefined> {
+    try {
+      const raw = localStorage.getItem("dt.profile");
+      if (!raw) return undefined;
+      return JSON.parse(raw) as UserProfile;
+    } catch {
+      return undefined;
+    }
+  },
+
+  async upsertProfile(
+    input: Partial<Omit<UserProfile, "id" | "userId">>
+  ): Promise<UserProfile> {
+    const existing = await this.getProfile();
+    const next: UserProfile = {
+      id: existing?.id ?? "local",
+      userId: existing?.userId ?? "local",
+      ...(existing ?? {}),
+      ...input,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem("dt.profile", JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+    return next;
   },
 };

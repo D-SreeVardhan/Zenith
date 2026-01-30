@@ -233,7 +233,7 @@ body {
 @layer components {
   .card {
     @apply bg-surface rounded-xl border border-border relative overflow-hidden;
-    background: linear-gradient(180deg, var(--color-surface) 0%, rgba(20, 20, 22, 0.95) 100%);
+    background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-elevated) 100%);
   }
   
   .card::before {
@@ -242,6 +242,15 @@ body {
     inset: 0;
     background: radial-gradient(ellipse at top, rgba(201, 169, 98, 0.03) 0%, transparent 70%);
     pointer-events: none;
+  }
+
+  /* Theme-specific card polish */
+  html[data-theme="dark"] .card {
+    background: linear-gradient(180deg, var(--color-surface) 0%, rgba(20, 20, 22, 0.95) 100%);
+  }
+
+  html[data-theme="light"] .card::before {
+    background: radial-gradient(ellipse at top, rgba(0, 0, 0, 0.03) 0%, transparent 70%);
   }
   
   .card-elevated {

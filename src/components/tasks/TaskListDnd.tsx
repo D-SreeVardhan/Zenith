@@ -18,7 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, GripVertical, Trash2, MoreVertical } from "lucide-react";
+import { Check, GripVertical, Trash2, MoreVertical, Pencil } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppStore } from "@/store/useAppStore";
 import { cn } from "@/lib/utils";
@@ -130,7 +130,7 @@ function SortableTaskItem({ task, isDragEnabled }: SortableTaskItemProps) {
         ) : (
           <span
             className={cn(
-              "text-sm cursor-pointer",
+              "text-sm cursor-pointer whitespace-normal break-words overflow-hidden [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical]",
               task.done
                 ? "text-text-muted line-through"
                 : "text-text-primary"
@@ -175,6 +175,14 @@ function SortableTaskItem({ task, isDragEnabled }: SortableTaskItemProps) {
             sideOffset={5}
             align="end"
           >
+            <DropdownMenu.Item
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-primary outline-none hover:bg-surface-hover"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit task
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator className="my-1 h-px bg-border" />
             <DropdownMenu.Sub>
               <DropdownMenu.SubTrigger className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-primary outline-none hover:bg-surface-hover">
                 Set priority

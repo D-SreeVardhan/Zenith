@@ -8,6 +8,7 @@ import type {
   EventTask,
   ActivityLog,
   ActivityAction,
+  UserProfile,
   CreateHabitInput,
   UpdateHabitInput,
   CreateEventInput,
@@ -17,6 +18,7 @@ import type {
   TaskSortMode,
 } from "@/lib/types";
 import { instantDbRepo } from "@/lib/repo/instantDbRepo";
+import { toLocalYmd } from "@/lib/utils";
 
 interface AppState {
   // Data
@@ -24,6 +26,7 @@ interface AppState {
   events: Event[];
   eventTasks: Record<string, EventTask[]>; // eventId -> tasks
   activityLogs: ActivityLog[];
+  profile: UserProfile | null;
 
   // UI State
   isLoading: boolean;
@@ -55,6 +58,10 @@ interface AppState {
   undoActivity: (logId: string) => Promise<void>;
   clearActivityLog: (logId: string) => Promise<void>;
 
+  // Actions - Profile
+  loadProfile: () => Promise<void>;
+  updateProfile: (input: Partial<Omit<UserProfile, "id" | "userId">>) => Promise<void>;
+
   // Utilities
   getTasksForEvent: (eventId: string) => EventTask[];
   getSortedTasks: (eventId: string) => EventTask[];
@@ -66,11 +73,13 @@ function createActivityLogEntry(
   entityType: "habit" | "event" | "task",
   entityId: string,
   entityTitle: string,
+  userEmail?: string,
   snapshot?: unknown,
   canUndo = true
 ): ActivityLog {
   return {
     id: nanoid(),
+    userEmail,
     action,
     entityType,
     entityId,
@@ -87,6 +96,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   events: [],
   eventTasks: {},
   activityLogs: [],
+  profile: null,
   isLoading: false,
   taskSortMode: "custom",
 
@@ -108,9 +118,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({ habits: [...state.habits, habit] }));
 
     // Log activity
-    const log = createActivityLogEntry("habit_created", "habit", habit.id, habit.title, habit);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry("habit_created", "habit", habit.id, habit.title, undefined, habit);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
 
     return habit;
   },
@@ -133,14 +143,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     // Log activity with snapshot for undo
-    const log = createActivityLogEntry("habit_deleted", "habit", id, habit.title, habit, true);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry("habit_deleted", "habit", id, habit.title, undefined, habit, true);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
   },
 
   toggleHabitCompletion: async (id, date) => {
     const habit = get().habits.find((h) => h.id === id);
     const wasCompleted = habit?.completions.includes(date.split("T")[0]);
+
+    // Strict mode: only allow marking today's completion.
+    if (habit?.completionMode === "strict") {
+      const dateKey = date.split("T")[0];
+      const todayKey = toLocalYmd(new Date());
+      if (dateKey !== todayKey) return;
+    }
 
     const updated = await instantDbRepo.toggleHabitCompletion(id, date);
     set((state) => ({
@@ -149,9 +166,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Log activity
     const action = wasCompleted ? "habit_uncompleted" : "habit_completed";
-    const log = createActivityLogEntry(action, "habit", id, updated.title, { date }, false);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry(action, "habit", id, updated.title, undefined, { date }, false);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
   },
 
   // ========================
@@ -172,9 +189,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({ events: [...state.events, event] }));
 
     // Log activity
-    const log = createActivityLogEntry("event_created", "event", event.id, event.title, event);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry("event_created", "event", event.id, event.title, undefined, event);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
 
     return event;
   },
@@ -186,9 +203,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     // Log activity (no undo for updates)
-    const log = createActivityLogEntry("event_updated", "event", id, updated.title, null, false);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry("event_updated", "event", id, updated.title, undefined, null, false);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
   },
 
   deleteEvent: async (id) => {
@@ -206,9 +223,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     // Log activity with snapshot for undo
-    const log = createActivityLogEntry("event_deleted", "event", id, event.title, { event, tasks }, true);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry("event_deleted", "event", id, event.title, undefined, { event, tasks }, true);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
   },
 
   // ========================
@@ -231,9 +248,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
 
     // Log activity
-    const log = createActivityLogEntry("task_created", "task", task.id, task.title, task);
-    await instantDbRepo.createActivityLog(log);
-    set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+    const log = createActivityLogEntry("task_created", "task", task.id, task.title, undefined, task);
+    const saved = await instantDbRepo.createActivityLog(log);
+    set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
 
     return task;
   },
@@ -260,9 +277,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Log completion status changes
     if (input.done !== undefined && taskBefore && input.done !== taskBefore.done) {
       const action = input.done ? "task_completed" : "task_uncompleted";
-      const log = createActivityLogEntry(action, "task", id, updated.title, null, false);
-      await instantDbRepo.createActivityLog(log);
-      set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+      const log = createActivityLogEntry(action, "task", id, updated.title, undefined, null, false);
+      const saved = await instantDbRepo.createActivityLog(log);
+      set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
     }
   },
 
@@ -280,9 +297,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Log activity with snapshot for undo
     if (task) {
-      const log = createActivityLogEntry("task_deleted", "task", id, task.title, task, true);
-      await instantDbRepo.createActivityLog(log);
-      set((state) => ({ activityLogs: [log, ...state.activityLogs] }));
+      const log = createActivityLogEntry("task_deleted", "task", id, task.title, undefined, task, true);
+      const saved = await instantDbRepo.createActivityLog(log);
+      set((state) => ({ activityLogs: [saved, ...state.activityLogs] }));
     }
   },
 
@@ -397,6 +414,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       activityLogs: state.activityLogs.filter((l) => l.id !== logId),
     }));
+  },
+
+  // ========================
+  // PROFILE
+  // ========================
+  loadProfile: async () => {
+    try {
+      const profile = await instantDbRepo.getProfile();
+      set({ profile: profile ?? null });
+    } catch (err) {
+      console.error("Failed to load profile", err);
+      set({ profile: null });
+    }
+  },
+
+  updateProfile: async (input) => {
+    const next = await instantDbRepo.upsertProfile(input);
+    set({ profile: next });
   },
 
   // ========================

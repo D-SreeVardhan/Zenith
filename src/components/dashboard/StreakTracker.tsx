@@ -163,21 +163,19 @@ export function StreakTracker() {
         </div>
 
         {/* Motivation message */}
-        {streaks.currentStreak === 0 && (
-          <div className="text-center text-xs text-text-muted bg-surface-elevated rounded-lg px-3 py-2">
-            Complete a habit today to start your streak! 💪
-          </div>
-        )}
-        {streaks.currentStreak > 0 && streaks.currentStreak < 7 && (
-          <div className="text-center text-xs text-text-muted bg-surface-elevated rounded-lg px-3 py-2">
-            {7 - streaks.currentStreak} more day{7 - streaks.currentStreak !== 1 ? 's' : ''} to reach 7-day streak! 🔥
-          </div>
-        )}
-        {streaks.currentStreak >= 7 && (
-          <div className="text-center text-xs text-accent bg-accent/10 rounded-lg px-3 py-2">
-            Amazing! Keep this streak alive! 🌟
-          </div>
-        )}
+        <div className="text-center text-xs text-text-muted bg-surface-elevated rounded-lg px-3 py-2">
+          {streaks.currentStreak === 0
+            ? "Complete a habit today to start your streak."
+            : streaks.currentStreak < 7
+            ? `${7 - streaks.currentStreak} more day${7 - streaks.currentStreak !== 1 ? "s" : ""} to reach a 7‑day streak.`
+            : streaks.currentStreak < 14
+            ? "One week in. Keep it steady."
+            : streaks.currentStreak < 30
+            ? "Two weeks strong. Your consistency is showing."
+            : streaks.currentStreak < 60
+            ? "A full month of momentum. Don’t break the chain."
+            : "Elite consistency. Protect this streak."}
+        </div>
       </div>
     </motion.div>
   );

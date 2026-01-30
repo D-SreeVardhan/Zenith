@@ -10,14 +10,26 @@ import { instantDb } from "@/lib/instantdb";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user } = instantDb.useAuth();
+  const { user, isLoading: authLoading } = instantDb.useAuth();
   const [email, setEmail] = useState<string | null>(null);
+  const devBypassLogin =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_DEV_BYPASS_LOGIN === "1";
 
   useEffect(() => {
     if (user?.id) {
       router.replace("/");
     }
   }, [router, user?.id]);
+
+  useEffect(() => {
+    if (!devBypassLogin) return;
+    if (user?.id) return;
+    if (authLoading) return;
+    instantDb.auth.signInAsGuest().catch((e) => {
+      console.error("Dev guest sign-in failed", e);
+    });
+  }, [devBypassLogin, user?.id, authLoading]);
 
   return (
     <div className="min-h-screen bg-base">
